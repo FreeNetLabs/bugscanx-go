@@ -2,7 +2,7 @@ package main
 
 import (
 	"github.com/Ayanrajpoot10/bugscanx-go/cmd"
-	"github.com/Ayanrajpoot10/bugscanx-go/pkg/queuescanner/ui"
+	"github.com/Ayanrajpoot10/bugscanx-go/pkg/ui"
 )
 
 func main() {
