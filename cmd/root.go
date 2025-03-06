@@ -13,10 +13,6 @@ func Execute() {
 	cobra.CheckErr(rootCmd.Execute())
 }
 
-func init() {
-	rootCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
-}
-
 var (
 	colorD1 = color.New()
 	colorB1 = color.New(color.FgHiBlack)
