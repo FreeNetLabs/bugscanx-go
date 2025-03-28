@@ -75,7 +75,6 @@ func scanSNI(c *queuescanner.Ctx, p *queuescanner.QueueScannerScanParams) {
 	defer ctxHandshakeCancel()
 	err = tlsConn.HandshakeContext(ctxHandshake)
 	if err != nil {
-		c.ScanFailed(domain, nil)
 		return
 	}
 	c.ScanSuccess(domain, func() {

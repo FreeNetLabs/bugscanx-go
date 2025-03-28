@@ -11,7 +11,6 @@ import (
 
 type Ctx struct {
 	ScanSuccessList []interface{}
-	ScanFailedList  []interface{}
 	ScanComplete    int
 
 	dataList []*QueueScannerScanParams
@@ -30,10 +29,9 @@ func (c *Ctx) Logf(f string, a ...interface{}) {
 
 func (c *Ctx) LogReplace(a ...string) {
 	scanSuccess := len(c.ScanSuccessList)
-	scanFailed := len(c.ScanFailedList)
 	scanCompletePercentage := float64(c.ScanComplete) / float64(len(c.dataList)) * 100
 	s := fmt.Sprintf(
-		"  %.2f%% - C: %d / %d - S: %d - F: %d - %s", scanCompletePercentage, c.ScanComplete, len(c.dataList), scanSuccess, scanFailed, strings.Join(a, " "),
+		"  %.2f%% - C: %d / %d - S: %d - %s", scanCompletePercentage, c.ScanComplete, len(c.dataList), scanSuccess, strings.Join(a, " "),
 	)
 
 	termWidth, _, err := terminal.Dimensions()
@@ -60,17 +58,6 @@ func (c *Ctx) ScanSuccess(a interface{}, fn func()) {
 	}
 
 	c.ScanSuccessList = append(c.ScanSuccessList, a)
-}
-
-func (c *Ctx) ScanFailed(a interface{}, fn func()) {
-	c.mx.Lock()
-	defer c.mx.Unlock()
-
-	if fn != nil {
-		fn()
-	}
-
-	c.ScanFailedList = append(c.ScanFailedList, a)
 }
 
 type QueueScannerScanParams struct {

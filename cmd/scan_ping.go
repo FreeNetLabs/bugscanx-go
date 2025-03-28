@@ -86,8 +86,6 @@ func pingHost(ctx *queuescanner.Ctx, params *queuescanner.QueueScannerScanParams
 	host := params.Data.(string)
 	conn, err := net.DialTimeout("tcp", net.JoinHostPort(host, fmt.Sprintf("%d", pingFlagPort)), time.Duration(pingFlagTimeout)*time.Second)
 	if err != nil {
-		ctx.ScanFailed(host, func() {
-		})
 		return
 	}
 	defer conn.Close()

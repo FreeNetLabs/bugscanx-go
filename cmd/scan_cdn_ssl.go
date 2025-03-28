@@ -147,7 +147,6 @@ func scanCdnSsl(c *queuescanner.Ctx, p *queuescanner.QueueScannerScanParams) {
 	defer ctxHandshakeCancel()
 	err = tlsConn.HandshakeContext(ctxHandshake)
 	if err != nil {
-		c.ScanFailed(req, nil)
 		return
 	}
 
