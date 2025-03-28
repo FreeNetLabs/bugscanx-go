@@ -5,13 +5,14 @@ import (
 	"fmt"
 	"strings"
 	"sync"
+	"sync/atomic"
 
 	terminal "github.com/wayneashleyberry/terminal-dimensions"
 )
 
 type Ctx struct {
 	ScanSuccessList []interface{}
-	ScanComplete    int
+	ScanComplete    atomic.Int64
 
 	dataList []*QueueScannerScanParams
 
@@ -29,9 +30,15 @@ func (c *Ctx) Logf(f string, a ...interface{}) {
 
 func (c *Ctx) LogReplace(a ...string) {
 	scanSuccess := len(c.ScanSuccessList)
-	scanCompletePercentage := float64(c.ScanComplete) / float64(len(c.dataList)) * 100
+	scanComplete := c.ScanComplete.Load()
+	scanCompletePercentage := float64(scanComplete) / float64(len(c.dataList)) * 100
 	s := fmt.Sprintf(
-		"  %.2f%% - C: %d / %d - S: %d - %s", scanCompletePercentage, c.ScanComplete, len(c.dataList), scanSuccess, strings.Join(a, " "),
+		"  %.2f%% - C: %d / %d - S: %d - %s",
+		scanCompletePercentage,
+		scanComplete,
+		len(c.dataList),
+		scanSuccess,
+		strings.Join(a, " "),
 	)
 
 	termWidth, _, err := terminal.Dimensions()
@@ -72,44 +79,35 @@ type QueueScanner struct {
 	scanFunc QueueScannerScanFunc
 	queue    chan *QueueScannerScanParams
 	wg       sync.WaitGroup
-
-	ctx *Ctx
+	ctx      *Ctx
 }
 
 func NewQueueScanner(threads int, scanFunc QueueScannerScanFunc) *QueueScanner {
 	t := &QueueScanner{
 		threads:  threads,
 		scanFunc: scanFunc,
-		queue:    make(chan *QueueScannerScanParams),
+		queue:    make(chan *QueueScannerScanParams, threads*2),
 		ctx:      &Ctx{},
 	}
 
+	t.wg.Add(threads)
 	for i := 0; i < t.threads; i++ {
-		go t.run()
+		go t.worker()
 	}
 
 	return t
 }
 
-func (s *QueueScanner) run() {
-	s.wg.Add(1)
+func (s *QueueScanner) worker() {
 	defer s.wg.Done()
 
-	for {
-		a, ok := <-s.queue
-		if !ok {
-			break
-		}
+	for item := range s.queue {
+		s.ctx.LogReplace(item.Name)
 
-		s.ctx.LogReplace(a.Name)
+		s.scanFunc(s.ctx, item)
 
-		s.scanFunc(s.ctx, a)
-
-		s.ctx.mx.Lock()
-		s.ctx.ScanComplete++
-		s.ctx.mx.Unlock()
-
-		s.ctx.LogReplace(a.Name)
+		s.ctx.ScanComplete.Add(1)
+		s.ctx.LogReplace(item.Name)
 	}
 }
 
