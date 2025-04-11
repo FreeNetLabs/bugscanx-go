@@ -14,7 +14,6 @@ func Execute() {
 }
 
 var (
-	colorD1 = color.New()
 	colorB1 = color.New(color.FgHiBlack)
 	colorW1 = color.New(color.FgWhite, color.Bold)
 	colorG1 = color.New(color.FgGreen, color.Bold)

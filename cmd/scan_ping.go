@@ -43,7 +43,7 @@ func pingRun(cmd *cobra.Command, args []string) {
 		return
 	}
 
-	colorM1.Printf("\n%-15s %-20s\n", "Status", "Host")
+	colorM1.Printf("%-15s %-20s\n", "Status", "Host")
 	colorW1.Printf("%-15s %-20s\n", "--------", "--------")
 
 	scanner := queuescanner.NewQueueScanner(scanFlagThreads, pingHost)

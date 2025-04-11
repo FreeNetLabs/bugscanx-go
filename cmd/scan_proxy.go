@@ -146,21 +146,18 @@ func scanProxy(c *queuescanner.Ctx, p *queuescanner.QueueScannerScanParams) {
 			}
 		}
 
-		// If the response lines are empty, treat it as an error or timeout
 		if len(responseLines) == 0 {
 			c.Log(colorR1.Sprintf("%s - Timeout", proxyHostPort))
 			chanResult <- false
 			return
 		}
 
-		// Log and save the result based on status
 		if strings.Contains(responseLines[0], " 302 ") {
 			c.Log(colorY1.Sprintf("%-32s Skipping 302 Response", proxyHostPort))
 			chanResult <- true
 			return
 		}
 
-		// Log the response
 		var resultString string
 		if strings.Contains(responseLines[0], " 101 ") {
 			resultString = colorG1.Sprintf("%-32s %s", proxyHostPort, strings.Join(responseLines, " -- "))
@@ -169,7 +166,6 @@ func scanProxy(c *queuescanner.Ctx, p *queuescanner.QueueScannerScanParams) {
 		}
 		c.Log(resultString)
 
-		// Save the result if output file is specified
 		if scanProxyFlagOutput != "" {
 			f, err := os.OpenFile(scanProxyFlagOutput, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
 			if err == nil {
@@ -236,8 +232,6 @@ func runScanProxy(cmd *cobra.Command, args []string) {
 			proxyHostList[proxyHost] = true
 		}
 	}
-
-	//
 
 	queueScanner := queuescanner.NewQueueScanner(scanFlagThreads, scanProxy)
 	regexpIsIP := regexp.MustCompile(`\d+$`)

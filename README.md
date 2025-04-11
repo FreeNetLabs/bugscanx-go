@@ -26,7 +26,6 @@
 go install -v github.com/Ayanrajpoot10/bugscanx-go@latest
 echo 'export PATH="$PATH:$HOME/go/bin"' >> $HOME/.bashrc && source $HOME/.bashrc
 ```
-
 ## Usage
 
 ### Basic Commands

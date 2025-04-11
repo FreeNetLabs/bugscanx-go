@@ -41,8 +41,6 @@ func init() {
 func scanSNI(c *queuescanner.Ctx, p *queuescanner.QueueScannerScanParams) {
 	domain := p.Data.(string)
 
-	//
-
 	var conn net.Conn
 	var err error
 
@@ -102,8 +100,6 @@ func runScanSNI(cmd *cobra.Command, args []string) {
 		}
 		mapDomainList[domain] = true
 	}
-
-	//
 
 	queueScanner := queuescanner.NewQueueScanner(scanFlagThreads, scanSNI)
 	for domain := range mapDomainList {
