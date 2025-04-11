@@ -33,7 +33,7 @@ func (c *Ctx) LogReplace(a ...string) {
 	scanComplete := c.ScanComplete.Load()
 	scanCompletePercentage := float64(scanComplete) / float64(len(c.dataList)) * 100
 	s := fmt.Sprintf(
-		"  %.2f%% - C: %d / %d - S: %d - %s",
+		"  %.3f%% - C: %d / %d - S: %d - %s",
 		scanCompletePercentage,
 		scanComplete,
 		len(c.dataList),
