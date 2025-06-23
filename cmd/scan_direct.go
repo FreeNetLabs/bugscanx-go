@@ -11,9 +11,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/Ayanrajpoot10/bugscanx-go/pkg/queuescanner"
 	"github.com/fatih/color"
 	"github.com/spf13/cobra"
+
+	"github.com/Ayanrajpoot10/bugscanx-go/pkg/queuescanner"
 )
 
 var scanDirectCmd = &cobra.Command{
@@ -33,7 +34,7 @@ var (
 )
 
 func init() {
-	scanCmd.AddCommand(scanDirectCmd)
+	rootCmd.AddCommand(scanDirectCmd)
 
 	scanDirectCmd.Flags().StringVarP(&scanDirectFlagFilename, "filename", "f", "", "domain list filename")
 	scanDirectCmd.Flags().BoolVar(&scanDirectFlagHttps, "https", false, "use https")
@@ -176,7 +177,7 @@ func scanDirectRun(cmd *cobra.Command, args []string) {
 		domainList[domain] = true
 	}
 
-	queueScanner := queuescanner.NewQueueScanner(scanFlagThreads, scanDirect)
+	queueScanner := queuescanner.NewQueueScanner(globalFlagThreads, scanDirect)
 	printHeaders()
 
 	for domain := range domainList {

@@ -7,8 +7,9 @@ import (
 	"os"
 	"time"
 
-	"github.com/Ayanrajpoot10/bugscanx-go/pkg/queuescanner"
 	"github.com/spf13/cobra"
+
+	"github.com/Ayanrajpoot10/bugscanx-go/pkg/queuescanner"
 )
 
 var pingCmd = &cobra.Command{
@@ -25,7 +26,7 @@ var (
 )
 
 func init() {
-	scanCmd.AddCommand(pingCmd)
+	rootCmd.AddCommand(pingCmd)
 
 	pingCmd.Flags().StringVarP(&pingFlagFilename, "filename", "f", "", "File containing hosts to ping (required)")
 	pingCmd.Flags().IntVar(&pingFlagTimeout, "timeout", 2, "Ping timeout in seconds")
@@ -46,7 +47,7 @@ func pingRun(cmd *cobra.Command, args []string) {
 	colorM1.Printf("%-15s %-20s\n", "Status", "Host")
 	colorW1.Printf("%-15s %-20s\n", "--------", "--------")
 
-	scanner := queuescanner.NewQueueScanner(scanFlagThreads, pingHost)
+	scanner := queuescanner.NewQueueScanner(globalFlagThreads, pingHost)
 	for _, host := range hosts {
 		scanner.Add(&queuescanner.QueueScannerScanParams{Name: host, Data: host})
 	}

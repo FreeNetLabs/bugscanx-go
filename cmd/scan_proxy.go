@@ -12,8 +12,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/Ayanrajpoot10/bugscanx-go/pkg/queuescanner"
 	"github.com/spf13/cobra"
+
+	"github.com/Ayanrajpoot10/bugscanx-go/pkg/queuescanner"
 )
 
 var scanProxyCmd = &cobra.Command{
@@ -38,7 +39,7 @@ var (
 )
 
 func init() {
-	scanCmd.AddCommand(scanProxyCmd)
+	rootCmd.AddCommand(scanProxyCmd)
 
 	scanProxyCmd.Flags().StringVarP(&scanProxyFlagProxyCidr, "cidr", "c", "", "cidr proxy to scan e.g. 127.0.0.1/32")
 	scanProxyCmd.Flags().StringVar(&scanProxyFlagProxyHost, "proxy", "", "proxy without port")
@@ -187,7 +188,6 @@ func scanProxy(c *queuescanner.Ctx, p *queuescanner.QueueScannerScanParams) {
 	}
 }
 
-
 func getScanProxyPayloadDecoded(bug ...string) string {
 	payload := scanProxyFlagPayload
 	payload = strings.ReplaceAll(payload, "[method]", scanProxyFlagMethod)
@@ -233,7 +233,7 @@ func runScanProxy(cmd *cobra.Command, args []string) {
 		}
 	}
 
-	queueScanner := queuescanner.NewQueueScanner(scanFlagThreads, scanProxy)
+	queueScanner := queuescanner.NewQueueScanner(globalFlagThreads, scanProxy)
 	regexpIsIP := regexp.MustCompile(`\d+$`)
 
 	for proxyHost := range proxyHostList {

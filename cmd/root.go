@@ -9,8 +9,14 @@ var rootCmd = &cobra.Command{
 	Use:   "bugscanx-go",
 }
 
+var globalFlagThreads int
+
 func Execute() {
 	cobra.CheckErr(rootCmd.Execute())
+}
+
+func init() {
+	rootCmd.PersistentFlags().IntVarP(&globalFlagThreads, "threads", "t", 64, "total threads to use")
 }
 
 var (

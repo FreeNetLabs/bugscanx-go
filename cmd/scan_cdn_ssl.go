@@ -12,8 +12,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/Ayanrajpoot10/bugscanx-go/pkg/queuescanner"
 	"github.com/spf13/cobra"
+
+	"github.com/Ayanrajpoot10/bugscanx-go/pkg/queuescanner"
 )
 
 var scanCdnSslCmd = &cobra.Command{
@@ -39,7 +40,7 @@ var (
 )
 
 func init() {
-	scanCmd.AddCommand(scanCdnSslCmd)
+	rootCmd.AddCommand(scanCdnSslCmd)
 
 	scanCdnSslCmd.Flags().StringVarP(&cdnSslFlagProxyCidr, "cidr", "c", "", "cidr cdn proxy to scan e.g. 127.0.0.1/32")
 	scanCdnSslCmd.Flags().StringVar(&cdnSslFlagProxyHost, "proxy", "", "cdn proxy without port")
@@ -255,7 +256,7 @@ func runScanCdnSsl(cmd *cobra.Command, args []string) {
 
 	//
 
-	queueScanner := queuescanner.NewQueueScanner(scanFlagThreads, scanCdnSsl)
+	queueScanner := queuescanner.NewQueueScanner(globalFlagThreads, scanCdnSsl)
 	regexpIsIP := regexp.MustCompile(`\d+$`)
 
 	for proxyHost := range proxyHostList {

@@ -28,7 +28,7 @@ var (
 )
 
 func init() {
-	scanCmd.AddCommand(sniCmd)
+	rootCmd.AddCommand(sniCmd)
 
 	sniCmd.Flags().StringVarP(&sniFlagFilename, "filename", "f", "", "domain list filename")
 	sniCmd.Flags().IntVarP(&sniFlagDeep, "deep", "d", 0, "deep subdomain")
@@ -100,7 +100,7 @@ func runScanSNI(cmd *cobra.Command, args []string) {
 		mapDomainList[domain] = true
 	}
 
-	queueScanner := queuescanner.NewQueueScanner(scanFlagThreads, scanSNI)
+	queueScanner := queuescanner.NewQueueScanner(globalFlagThreads, scanSNI)
 	for domain := range mapDomainList {
 		queueScanner.Add(&queuescanner.QueueScannerScanParams{
 			Name: domain,
