@@ -24,13 +24,12 @@ var scanDirectCmd = &cobra.Command{
 }
 
 var (
-	scanDirectFlagFilename    string
-	scanDirectFlagHttps       bool
-	scanDirectFlagTimeout     int
-	scanDirectFlagOutput      string
-	scanDirectFlagMethod      string
-	scanDirectFlagBothSchemes bool
-	scanDirectFlagShow302     bool
+	scanDirectFlagFilename string
+	scanDirectFlagHttps    bool
+	scanDirectFlagTimeout  int
+	scanDirectFlagOutput   string
+	scanDirectFlagMethod   string
+	scanDirectFlagShow302  bool
 )
 
 func init() {
@@ -41,7 +40,6 @@ func init() {
 	scanDirectCmd.Flags().IntVar(&scanDirectFlagTimeout, "timeout", 3, "connect timeout")
 	scanDirectCmd.Flags().StringVarP(&scanDirectFlagOutput, "output", "o", "", "output result")
 	scanDirectCmd.Flags().StringVarP(&scanDirectFlagMethod, "method", "m", "HEAD", "http method")
-	scanDirectCmd.Flags().BoolVar(&scanDirectFlagBothSchemes, "both-schemes", false, "scan both http and https")
 	scanDirectCmd.Flags().BoolVar(&scanDirectFlagShow302, "show302", false, "show 302 status code results")
 
 	scanDirectCmd.MarkFlagFilename("filename")
@@ -180,38 +178,20 @@ func scanDirectRun(cmd *cobra.Command, args []string) {
 	queueScanner := queuescanner.NewQueueScanner(globalFlagThreads, scanDirect)
 	printHeaders()
 
+	scheme := "http"
+	if scanDirectFlagHttps {
+		scheme = "https"
+	}
+
 	for domain := range domainList {
-		if scanDirectFlagBothSchemes {
-			queueScanner.Add(&queuescanner.QueueScannerScanParams{
-				Name: fmt.Sprintf("http://%s", domain),
-				Data: &scanDirectRequest{
-					Domain: domain,
-					Scheme: "http",
-					Method: scanDirectFlagMethod,
-				},
-			})
-			queueScanner.Add(&queuescanner.QueueScannerScanParams{
-				Name: fmt.Sprintf("https://%s", domain),
-				Data: &scanDirectRequest{
-					Domain: domain,
-					Scheme: "https",
-					Method: scanDirectFlagMethod,
-				},
-			})
-		} else {
-			scheme := "http"
-			if scanDirectFlagHttps {
-				scheme = "https"
-			}
-			queueScanner.Add(&queuescanner.QueueScannerScanParams{
-				Name: fmt.Sprintf("%s://%s", scheme, domain),
-				Data: &scanDirectRequest{
-					Domain: domain,
-					Scheme: scheme,
-					Method: scanDirectFlagMethod,
-				},
-			})
-		}
+		queueScanner.Add(&queuescanner.QueueScannerScanParams{
+			Name: fmt.Sprintf("%s://%s", scheme, domain),
+			Data: &scanDirectRequest{
+				Domain: domain,
+				Scheme: scheme,
+				Method: scanDirectFlagMethod,
+			},
+		})
 	}
 	queueScanner.Start(func(c *queuescanner.Ctx) {
 		if len(c.ScanSuccessList) == 0 {
