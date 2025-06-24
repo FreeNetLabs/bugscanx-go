@@ -120,7 +120,6 @@ func scanDirect(c *queuescanner.Ctx, p *queuescanner.QueueScannerScanParams) {
 		return
 	}
 
-	// Skip 302 responses unless show302 flag is enabled
 	if httpRes.StatusCode == 302 && !scanDirectFlagShow302 {
 		return
 	}
