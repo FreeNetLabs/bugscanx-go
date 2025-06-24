@@ -35,6 +35,7 @@ bugscanx-go direct -f example.txt -o cf.txt
 # CDN SSL scan
 bugscanx-go cdn-ssl --proxy-filename cf.txt --target ws.example.com
 
+# Proxy scan
 bugscanx-go proxy -f example.txt --target ws.example.com
 
 # SNI scan
