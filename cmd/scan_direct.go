@@ -25,11 +25,15 @@ var directCmd = &cobra.Command{
 }
 
 var (
-	scanDirectFlagFilename     string
-	scanDirectFlagHttps        bool
-	scanDirectFlagOutput       string
-	scanDirectFlagHideLocation string
-	scanDirectFlagMethod       string
+	scanDirectFlagFilename       string
+	scanDirectFlagHttps          bool
+	scanDirectFlagOutput         string
+	scanDirectFlagHideLocation   string
+	scanDirectFlagMethod         string
+	scanDirectFlagTimeoutConnect int
+	scanDirectFlagTimeoutTLS     int
+	scanDirectFlagTimeoutHeader  int
+	scanDirectFlagTimeoutRequest int
 )
 
 func init() {
@@ -40,6 +44,10 @@ func init() {
 	directCmd.Flags().StringVarP(&scanDirectFlagMethod, "method", "m", "HEAD", "HTTP method to use (e.g. HEAD, GET, POST)")
 	directCmd.Flags().BoolVar(&scanDirectFlagHttps, "https", false, "use https")
 	directCmd.Flags().StringVar(&scanDirectFlagHideLocation, "hide-location", "https://jio.com/BalanceExhaust", "hide results with this Location header")
+	directCmd.Flags().IntVar(&scanDirectFlagTimeoutConnect, "timeout-connect", 5, "TCP connect timeout in seconds (default 5)")
+	directCmd.Flags().IntVar(&scanDirectFlagTimeoutTLS, "timeout-tls", 2, "TLS handshake timeout in seconds (default 2)")
+	directCmd.Flags().IntVar(&scanDirectFlagTimeoutHeader, "timeout-header", 3, "Response header timeout in seconds (default 3)")
+	directCmd.Flags().IntVar(&scanDirectFlagTimeoutRequest, "timeout-request", 10, "Overall request timeout in seconds (default 10)")
 
 	directCmd.MarkFlagRequired("filename")
 }
@@ -56,22 +64,24 @@ type scanDirectResponse struct {
 	Location   string
 }
 
-var httpClient = &http.Client{
-	CheckRedirect: func(req *http.Request, via []*http.Request) error {
-		return http.ErrUseLastResponse
-	},
-	Transport: &http.Transport{
-		DisableKeepAlives: true,
-		TLSClientConfig: &tls.Config{
-			InsecureSkipVerify: true,
+func newHTTPClient() *http.Client {
+	return &http.Client{
+		CheckRedirect: func(req *http.Request, via []*http.Request) error {
+			return http.ErrUseLastResponse
 		},
-		DialContext: (&net.Dialer{
-			Timeout:   5 * time.Second,
-			KeepAlive: 0,
-		}).DialContext,
-		TLSHandshakeTimeout:   2 * time.Second,
-		ResponseHeaderTimeout: 3 * time.Second,
-	},
+		Transport: &http.Transport{
+			DisableKeepAlives: true,
+			TLSClientConfig: &tls.Config{
+				InsecureSkipVerify: true,
+			},
+			DialContext: (&net.Dialer{
+				Timeout:   time.Duration(scanDirectFlagTimeoutConnect) * time.Second,
+				KeepAlive: 0,
+			}).DialContext,
+			TLSHandshakeTimeout:   time.Duration(scanDirectFlagTimeoutTLS) * time.Second,
+			ResponseHeaderTimeout: time.Duration(scanDirectFlagTimeoutHeader) * time.Second,
+		},
+	}
 }
 
 func scanDirect(c *queuescanner.Ctx, p *queuescanner.QueueScannerScanParams) {
@@ -82,7 +92,7 @@ func scanDirect(c *queuescanner.Ctx, p *queuescanner.QueueScannerScanParams) {
 		httpScheme = "https"
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Duration(scanDirectFlagTimeoutRequest)*time.Second)
 	defer cancel()
 
 	method := scanDirectFlagMethod
@@ -97,10 +107,13 @@ func scanDirect(c *queuescanner.Ctx, p *queuescanner.QueueScannerScanParams) {
 
 	httpReq = httpReq.WithContext(ctx)
 
-	httpRes, err := httpClient.Do(httpReq)
+	client := newHTTPClient()
+	httpRes, err := client.Do(httpReq)
 	if err != nil {
 		return
 	}
+	defer httpRes.Body.Close()
+
 	hServer := httpRes.Header.Get("Server")
 	hLocation := httpRes.Header.Get("Location")
 
