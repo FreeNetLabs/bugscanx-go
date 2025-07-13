@@ -11,12 +11,10 @@ import (
 )
 
 type Ctx struct {
-	ScanSuccessList []any
 	ScanComplete    int64
-
-	dataList []*QueueScannerScanParams
-
-	mx sync.Mutex
+	ScanSuccessList []any
+	dataList        []*QueueScannerScanParams
+	mx              sync.Mutex
 }
 
 func (c *Ctx) Log(a ...any) {
