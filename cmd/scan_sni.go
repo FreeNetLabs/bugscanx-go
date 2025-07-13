@@ -16,9 +16,11 @@ import (
 )
 
 var sniCmd = &cobra.Command{
-	Use:   "sni",
-	Short: "Scan server name indication list from file",
-	Run:   runScanSNI,
+	Use:     "sni",
+	Short:   "Scan server name indication (SNI) list from file.",
+	Long:    "Scan a list of domains for SNI support using TLS handshake. Useful for identifying valid SNI endpoints and their certificates.\nSupports deep subdomain scanning and configurable handshake timeout.",
+	Example: "  bugscanx-go sni -f domains.txt\n  bugscanx-go sni -f domains.txt --deep 2 --timeout 5",
+	Run:     runScanSNI,
 }
 
 var (

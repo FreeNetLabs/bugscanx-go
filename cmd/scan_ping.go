@@ -13,9 +13,11 @@ import (
 )
 
 var pingCmd = &cobra.Command{
-	Use:   "ping",
-	Short: "Scan hosts using TCP ping",
-	Run:   pingRun,
+	Use:     "ping",
+	Short:   "Scan hosts using TCP ping.",
+	Long:    "Perform a fast TCP ping scan on a list of hosts to check their reachability. Supports custom ports, timeouts, and output file options. Useful for quickly identifying live hosts.",
+	Example: "  bugscanx-go ping -f hosts.txt\n  bugscanx-go ping -f hosts.txt --port 443 --timeout 5",
+	Run:     pingRun,
 }
 
 var (
@@ -28,10 +30,10 @@ var (
 func init() {
 	rootCmd.AddCommand(pingCmd)
 
-	pingCmd.Flags().StringVarP(&pingFlagFilename, "filename", "f", "", "File containing hosts to ping (required)")
-	pingCmd.Flags().IntVar(&pingFlagTimeout, "timeout", 2, "Ping timeout in seconds")
-	pingCmd.Flags().StringVarP(&pingFlagOutput, "output", "o", "", "File to save results")
-	pingCmd.Flags().IntVar(&pingFlagPort, "port", 80, "Port to use for TCP ping")
+	pingCmd.Flags().StringVarP(&pingFlagFilename, "filename", "f", "", "domain list filename")
+	pingCmd.Flags().IntVar(&pingFlagTimeout, "timeout", 2, "timeout in seconds")
+	pingCmd.Flags().StringVarP(&pingFlagOutput, "output", "o", "", "output result")
+	pingCmd.Flags().IntVar(&pingFlagPort, "port", 80, "port to use")
 
 	pingCmd.MarkFlagRequired("filename")
 }
@@ -44,8 +46,8 @@ func pingRun(cmd *cobra.Command, args []string) {
 		return
 	}
 
-	fmt.Printf("%-15s %-20s\n", "Status", "Host")
-	fmt.Printf("%-15s %-20s\n", "--------", "--------")
+	fmt.Printf("%-16s %-20s\n", "IP Address", "Host")
+	fmt.Printf("%-16s %-20s\n", "----------", "----")
 
 	scanner := queuescanner.NewQueueScanner(globalFlagThreads, pingHost)
 	for _, host := range hosts {
@@ -53,7 +55,6 @@ func pingRun(cmd *cobra.Command, args []string) {
 	}
 
 	scanner.Start(func(ctx *queuescanner.Ctx) {
-		fmt.Printf("Success: %d\n", len(ctx.ScanSuccessList))
 		if pingFlagOutput != "" {
 			writeResultsToFile(pingFlagOutput, ctx)
 		}
@@ -91,8 +92,14 @@ func pingHost(ctx *queuescanner.Ctx, params *queuescanner.QueueScannerScanParams
 	}
 	defer conn.Close()
 
+	remoteAddr := conn.RemoteAddr()
+	ip, _, err := net.SplitHostPort(remoteAddr.String())
+	if err != nil {
+		ip = remoteAddr.String()
+	}
+
 	ctx.ScanSuccess(host, func() {
-		ctx.Log(fmt.Sprintf("%-15s%-20s", "succeeded:", host))
+		ctx.Log(fmt.Sprintf("%-16s %-20s", ip, host))
 	})
 }
 

@@ -18,9 +18,11 @@ import (
 )
 
 var scanCdnSslCmd = &cobra.Command{
-	Use:   "cdn-ssl",
-	Short: "Scan cdn ssl proxy -> payload -> ssl target",
-	Run:   runScanCdnSsl,
+	Use:     "cdn-ssl",
+	Short:   "Scan using CDN SSL proxy with payload injection to SSL targets.",
+	Long:    "Scan SSL targets by routing requests through a CDN SSL proxy, injecting payloads, and analyzing SSL responses. Supports proxy CIDR, host files, custom methods, and output options. Useful for testing SSL proxy chains and payload delivery.",
+	Example: "  bugscanx-go cdn-ssl --filename proxy.txt --target sslsite.com\n  bugscanx-go cdn-ssl --cidr 10.0.0.0/8 --target sslsite.com --payload test",
+	Run:     runScanCdnSsl,
 }
 
 var (
@@ -44,7 +46,7 @@ func init() {
 
 	scanCdnSslCmd.Flags().StringVarP(&cdnSslFlagProxyCidr, "cidr", "c", "", "cidr cdn proxy to scan e.g. 127.0.0.1/32")
 	scanCdnSslCmd.Flags().StringVar(&cdnSslFlagProxyHost, "proxy", "", "cdn proxy without port")
-	scanCdnSslCmd.Flags().StringVar(&cdnSslFlagProxyHostFilename, "proxy-filename", "", "cdn proxy filename without port")
+	scanCdnSslCmd.Flags().StringVar(&cdnSslFlagProxyHostFilename, "filename", "", "cdn proxy filename without port")
 	scanCdnSslCmd.Flags().IntVarP(&cdnSslFlagProxyPort, "port", "p", 443, "proxy port")
 	scanCdnSslCmd.Flags().StringVarP(&cdnSslFlagBug, "bug", "B", "", "bug to use when proxy is ip instead of domain")
 	scanCdnSslCmd.Flags().StringVarP(&cdnSslFlagMethod, "method", "M", "HEAD", "request method")
@@ -108,8 +110,6 @@ func scanCdnSsl(c *queuescanner.Ctx, p *queuescanner.QueueScannerScanParams) {
 		return
 	}
 
-	//
-
 	var conn net.Conn
 	var err error
 
@@ -150,8 +150,6 @@ func scanCdnSsl(c *queuescanner.Ctx, p *queuescanner.QueueScannerScanParams) {
 	if err != nil {
 		return
 	}
-
-	//
 
 	ctxResultTimeout, ctxResultTimeoutCancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer ctxResultTimeoutCancel()
@@ -253,8 +251,6 @@ func runScanCdnSsl(cmd *cobra.Command, args []string) {
 			proxyHostList[proxyHost] = true
 		}
 	}
-
-	//
 
 	queueScanner := queuescanner.NewQueueScanner(globalFlagThreads, scanCdnSsl)
 	regexpIsIP := regexp.MustCompile(`\d+$`)

@@ -17,9 +17,11 @@ import (
 )
 
 var directCmd = &cobra.Command{
-	Use:   "direct",
-	Short: "Scan using direct connection",
-	Run:   scanDirectRun,
+	Use:     "direct",
+	Short:   "Scan using direct connection to targets.",
+	Long:    "Scan a list of hosts using direct HTTP(S) connections. Supports custom HTTP methods, HTTPS, and filtering by Location header.",
+	Example: "  bugscanx-go direct -f hosts.txt\n  bugscanx-go direct -f hosts.txt --https --method GET",
+	Run:     scanDirectRun,
 }
 
 var (
@@ -27,14 +29,16 @@ var (
 	scanDirectFlagHttps        bool
 	scanDirectFlagOutput       string
 	scanDirectFlagHideLocation string
+	scanDirectFlagMethod       string
 )
 
 func init() {
 	rootCmd.AddCommand(directCmd)
 
 	directCmd.Flags().StringVarP(&scanDirectFlagFilename, "filename", "f", "", "domain list filename")
-	directCmd.Flags().BoolVar(&scanDirectFlagHttps, "https", false, "use https")
 	directCmd.Flags().StringVarP(&scanDirectFlagOutput, "output", "o", "", "output result")
+	directCmd.Flags().StringVarP(&scanDirectFlagMethod, "method", "m", "HEAD", "HTTP method to use (e.g. HEAD, GET, POST)")
+	directCmd.Flags().BoolVar(&scanDirectFlagHttps, "https", false, "use https")
 	directCmd.Flags().StringVar(&scanDirectFlagHideLocation, "hide-location", "https://jio.com/BalanceExhaust", "hide results with this Location header")
 
 	directCmd.MarkFlagRequired("filename")
@@ -62,10 +66,10 @@ var httpClient = &http.Client{
 			InsecureSkipVerify: true,
 		},
 		DialContext: (&net.Dialer{
-			Timeout:   3 * time.Second,
+			Timeout:   5 * time.Second,
 			KeepAlive: 0,
 		}).DialContext,
-		TLSHandshakeTimeout:   3 * time.Second,
+		TLSHandshakeTimeout:   2 * time.Second,
 		ResponseHeaderTimeout: 3 * time.Second,
 	},
 }
@@ -81,7 +85,12 @@ func scanDirect(c *queuescanner.Ctx, p *queuescanner.QueueScannerScanParams) {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
-	httpReq, err := http.NewRequest("HEAD", fmt.Sprintf("%s://%s", httpScheme, req.Domain), nil)
+	method := scanDirectFlagMethod
+	if method == "" {
+		method = "HEAD"
+	}
+
+	httpReq, err := http.NewRequest(method, fmt.Sprintf("%s://%s", httpScheme, req.Domain), nil)
 	if err != nil {
 		return
 	}
@@ -114,7 +123,7 @@ func scanDirect(c *queuescanner.Ctx, p *queuescanner.QueueScannerScanParams) {
 	}
 	c.ScanSuccess(res, nil)
 
-	c.Logf("%-15s  %-3d  %-16s    %s", ip, httpRes.StatusCode, hServer, req.Domain)
+	c.Logf("%-15s  %-3d   %-16s    %s", ip, httpRes.StatusCode, hServer, req.Domain)
 }
 
 func scanDirectRun(cmd *cobra.Command, args []string) {
@@ -132,6 +141,9 @@ func scanDirectRun(cmd *cobra.Command, args []string) {
 		domain := scanner.Text()
 		domainList[domain] = true
 	}
+
+	fmt.Printf("%-15s  %-3s  %-16s    %s\n", "IP Address", "Code", "Server", "Host")
+	fmt.Printf("%-15s  %-3s  %-16s    %s\n", "----------", "----", "------", "----")
 
 	queueScanner := queuescanner.NewQueueScanner(globalFlagThreads, scanDirect)
 	for domain := range domainList {
