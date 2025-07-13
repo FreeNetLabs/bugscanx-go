@@ -12,7 +12,7 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/Ayanrajpoot10/bugscanx-go/pkg/queuescanner"
+	"github.com/ayanrajpoot10/bugscanx-go/pkg/queuescanner"
 )
 
 var sniCmd = &cobra.Command{
@@ -75,7 +75,7 @@ func scanSNI(c *queuescanner.Ctx, p *queuescanner.QueueScannerScanParams) {
 		return
 	}
 	c.ScanSuccess(domain, func() {
-		c.Log(colorG1.Sprint(domain))
+		c.Log(domain)
 	})
 }
 

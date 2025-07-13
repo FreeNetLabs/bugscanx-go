@@ -14,7 +14,7 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/Ayanrajpoot10/bugscanx-go/pkg/queuescanner"
+	"github.com/ayanrajpoot10/bugscanx-go/pkg/queuescanner"
 )
 
 var scanProxyCmd = &cobra.Command{
@@ -89,13 +89,13 @@ func scanProxy(c *queuescanner.Ctx, p *queuescanner.QueueScannerScanParams) {
 	for {
 		dialCount++
 		if dialCount > 3 {
-			c.Log(colorB1.Sprintf("%s - Timeout", proxyHostPort))
+			c.Log(fmt.Sprintf("%s - Timeout", proxyHostPort))
 			return
 		}
 		conn, err = net.DialTimeout("tcp", proxyHostPort, 3*time.Second)
 		if err != nil {
 			if errors.As(err, &dnsErr) {
-				c.Log(colorB1.Sprint(proxyHostPort))
+				c.Log(proxyHostPort)
 				return
 			}
 			if e, ok := err.(net.Error); ok && e.Timeout() {
@@ -148,20 +148,20 @@ func scanProxy(c *queuescanner.Ctx, p *queuescanner.QueueScannerScanParams) {
 		}
 
 		if len(responseLines) == 0 {
-			c.Log(colorR1.Sprintf("%s - Timeout", proxyHostPort))
+			c.Log(fmt.Sprintf("%s - Timeout", proxyHostPort))
 			chanResult <- false
 			return
 		}
 
 		if strings.Contains(responseLines[0], " 302 ") {
-			c.Log(colorY1.Sprintf("%-32s Skipping 302 Response", proxyHostPort))
+			c.Log(fmt.Sprintf("%-32s Skipping 302 Response", proxyHostPort))
 			chanResult <- true
 			return
 		}
 
 		var resultString string
 		if strings.Contains(responseLines[0], " 101 ") {
-			resultString = colorG1.Sprintf("%-32s %s", proxyHostPort, strings.Join(responseLines, " -- "))
+			resultString = fmt.Sprintf("%-32s %s", proxyHostPort, strings.Join(responseLines, " -- "))
 		} else {
 			resultString = fmt.Sprintf("%-32s %s", proxyHostPort, strings.Join(responseLines, " -- "))
 		}
@@ -181,10 +181,10 @@ func scanProxy(c *queuescanner.Ctx, p *queuescanner.QueueScannerScanParams) {
 	select {
 	case success := <-chanResult:
 		if !success {
-			c.Log(colorR1.Sprintf("Failed to process: %s", proxyHostPort))
+			c.Log(fmt.Sprintf("Failed to process: %s", proxyHostPort))
 		}
 	case <-ctxResultTimeout.Done():
-		c.Log(colorR1.Sprintf("Timeout: %s", proxyHostPort))
+		c.Log(fmt.Sprintf("Timeout: %s", proxyHostPort))
 	}
 }
 
@@ -280,7 +280,7 @@ func runScanProxy(cmd *cobra.Command, args []string) {
 			if res.Request.Target == res.Request.Bug {
 				requestTargetBug = res.Request.Target
 			}
-			c.Log(colorG1.Sprintf("%-32s  %s -- %s", requestHostPort, requestTargetBug, res.Request.Payload))
+			c.Log(fmt.Sprintf("%-32s  %s -- %s", requestHostPort, requestTargetBug, res.Request.Payload))
 		}
 
 		jsonBytes, err := json.MarshalIndent(c.ScanSuccessList, "", "  ")

@@ -11,7 +11,7 @@ import (
 )
 
 type Ctx struct {
-	ScanSuccessList []interface{}
+	ScanSuccessList []any
 	ScanComplete    int64
 
 	dataList []*QueueScannerScanParams
@@ -19,11 +19,11 @@ type Ctx struct {
 	mx sync.Mutex
 }
 
-func (c *Ctx) Log(a ...interface{}) {
+func (c *Ctx) Log(a ...any) {
 	fmt.Printf("\r\033[2K%s\n", fmt.Sprint(a...))
 }
 
-func (c *Ctx) Logf(f string, a ...interface{}) {
+func (c *Ctx) Logf(f string, a ...any) {
 	c.Log(fmt.Sprintf(f, a...))
 }
 
@@ -45,11 +45,11 @@ func (c *Ctx) LogReplace(a ...string) {
 	fmt.Print("\r\033[2K", s, "\r")
 }
 
-func (c *Ctx) LogReplacef(f string, a ...interface{}) {
+func (c *Ctx) LogReplacef(f string, a ...any) {
 	c.LogReplace(fmt.Sprintf(f, a...))
 }
 
-func (c *Ctx) ScanSuccess(a interface{}, fn func()) {
+func (c *Ctx) ScanSuccess(a any, fn func()) {
 	c.mx.Lock()
 	defer c.mx.Unlock()
 
@@ -62,7 +62,7 @@ func (c *Ctx) ScanSuccess(a interface{}, fn func()) {
 
 type QueueScannerScanParams struct {
 	Name string
-	Data interface{}
+	Data any
 }
 type QueueScannerScanFunc func(c *Ctx, a *QueueScannerScanParams)
 type QueueScannerDoneFunc func(c *Ctx)

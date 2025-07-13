@@ -9,7 +9,7 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/Ayanrajpoot10/bugscanx-go/pkg/queuescanner"
+	"github.com/ayanrajpoot10/bugscanx-go/pkg/queuescanner"
 )
 
 var pingCmd = &cobra.Command{
@@ -44,8 +44,8 @@ func pingRun(cmd *cobra.Command, args []string) {
 		return
 	}
 
-	colorM1.Printf("%-15s %-20s\n", "Status", "Host")
-	colorW1.Printf("%-15s %-20s\n", "--------", "--------")
+	fmt.Printf("%-15s %-20s\n", "Status", "Host")
+	fmt.Printf("%-15s %-20s\n", "--------", "--------")
 
 	scanner := queuescanner.NewQueueScanner(globalFlagThreads, pingHost)
 	for _, host := range hosts {
@@ -92,7 +92,7 @@ func pingHost(ctx *queuescanner.Ctx, params *queuescanner.QueueScannerScanParams
 	defer conn.Close()
 
 	ctx.ScanSuccess(host, func() {
-		ctx.Log(colorG1.Sprintf("%-15s%-20s", "succeeded:", host))
+		ctx.Log(fmt.Sprintf("%-15s%-20s", "succeeded:", host))
 	})
 }
 

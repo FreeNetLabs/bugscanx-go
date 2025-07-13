@@ -10,13 +10,6 @@
    </a>
 </div>
 
-## Features
-- Skips 302 redirects to recharge portals
-- Saves all server results under "Others"
-- Supports GET, PATCH, and PUT methods
-- Fast PING scan mode
-- Enhanced UI with improved color scheme
-
 ## Installation
 ```bash
 go install -v github.com/Ayanrajpoot10/bugscanx-go@latest

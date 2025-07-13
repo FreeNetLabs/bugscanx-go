@@ -14,7 +14,7 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/Ayanrajpoot10/bugscanx-go/pkg/queuescanner"
+	"github.com/ayanrajpoot10/bugscanx-go/pkg/queuescanner"
 )
 
 var scanCdnSslCmd = &cobra.Command{
@@ -194,7 +194,7 @@ func scanCdnSsl(c *queuescanner.Ctx, p *queuescanner.QueueScannerScanParams) {
 		}
 
 		c.ScanSuccess(res, func() {
-			c.Log(colorG1.Sprintf("%-32s  %s", proxyHostPort, strings.Join(res.ResponseLine, " -- ")))
+			c.Log(fmt.Sprintf("%-32s  %s", proxyHostPort, strings.Join(res.ResponseLine, " -- ")))
 		})
 
 		chanResult <- true
