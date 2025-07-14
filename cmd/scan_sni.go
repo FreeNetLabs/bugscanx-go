@@ -1,7 +1,6 @@
 package cmd
 
 import (
-	"bufio"
 	"context"
 	"crypto/tls"
 	"fmt"
@@ -18,7 +17,6 @@ import (
 var sniCmd = &cobra.Command{
 	Use:     "sni",
 	Short:   "Scan server name indication (SNI) list from file.",
-	Long:    "Scan a list of domains for SNI support using TLS handshake. Useful for identifying valid SNI endpoints and their certificates.\nSupports deep subdomain scanning and configurable handshake timeout.",
 	Example: "  bugscanx-go sni -f domains.txt\n  bugscanx-go sni -f domains.txt --deep 2 --timeout 5",
 	Run:     runScanSNI,
 }
@@ -27,6 +25,7 @@ var (
 	sniFlagFilename string
 	sniFlagDeep     int
 	sniFlagTimeout  int
+	sniFlagOutput   string
 )
 
 func init() {
@@ -35,6 +34,7 @@ func init() {
 	sniCmd.Flags().StringVarP(&sniFlagFilename, "filename", "f", "", "domain list filename")
 	sniCmd.Flags().IntVarP(&sniFlagDeep, "deep", "d", 0, "deep subdomain")
 	sniCmd.Flags().IntVar(&sniFlagTimeout, "timeout", 3, "handshake timeout")
+	sniCmd.Flags().StringVarP(&sniFlagOutput, "output", "o", "", "output result")
 
 	sniCmd.MarkFlagFilename("filename")
 	sniCmd.MarkFlagRequired("filename")
@@ -64,6 +64,12 @@ func scanSNI(c *queuescanner.Ctx, p *queuescanner.QueueScannerScanParams) {
 		break
 	}
 
+	remoteAddr := conn.RemoteAddr()
+	ip, _, err := net.SplitHostPort(remoteAddr.String())
+	if err != nil {
+		ip = remoteAddr.String()
+	}
+
 	tlsConn := tls.Client(conn, &tls.Config{
 		ServerName:         domain,
 		InsecureSkipVerify: true,
@@ -76,23 +82,19 @@ func scanSNI(c *queuescanner.Ctx, p *queuescanner.QueueScannerScanParams) {
 	if err != nil {
 		return
 	}
-	c.ScanSuccess(domain, func() {
-		c.Log(domain)
-	})
+	formatted := fmt.Sprintf("%-16s %-20s", ip, domain)
+	c.ScanSuccess(formatted)
+	c.Log(formatted)
 }
 
 func runScanSNI(cmd *cobra.Command, args []string) {
-	domainListFile, err := os.Open(sniFlagFilename)
+	lines, err := ReadLinesFromFile(sniFlagFilename)
 	if err != nil {
 		fmt.Println(err.Error())
 		os.Exit(1)
 	}
-	defer domainListFile.Close()
-
 	mapDomainList := make(map[string]bool)
-	scanner := bufio.NewScanner(domainListFile)
-	for scanner.Scan() {
-		domain := scanner.Text()
+	for _, domain := range lines {
 		if sniFlagDeep > 0 {
 			domainSplit := strings.Split(domain, ".")
 			if len(domainSplit) >= sniFlagDeep {
@@ -102,6 +104,9 @@ func runScanSNI(cmd *cobra.Command, args []string) {
 		mapDomainList[domain] = true
 	}
 
+	fmt.Printf("%-16s %-20s\n", "IP Address", "SNI")
+	fmt.Printf("%-16s %-20s\n", "----------", "----")
+
 	queueScanner := queuescanner.NewQueueScanner(globalFlagThreads, scanSNI)
 	for domain := range mapDomainList {
 		queueScanner.Add(&queuescanner.QueueScannerScanParams{
@@ -109,5 +114,6 @@ func runScanSNI(cmd *cobra.Command, args []string) {
 			Data: domain,
 		})
 	}
-	queueScanner.Start(nil)
+	queueScanner.SetOutputFile(sniFlagOutput)
+	queueScanner.Start()
 }

@@ -15,6 +15,7 @@ type Ctx struct {
 	ScanSuccessList []any
 	dataList        []*QueueScannerScanParams
 	mx              sync.Mutex
+	OutputFile      string
 }
 
 func (c *Ctx) Log(a ...any) {
@@ -47,12 +48,16 @@ func (c *Ctx) LogReplacef(f string, a ...any) {
 	c.LogReplace(fmt.Sprintf(f, a...))
 }
 
-func (c *Ctx) ScanSuccess(a any, fn func()) {
+func (c *Ctx) ScanSuccess(a any) {
 	c.mx.Lock()
 	defer c.mx.Unlock()
 
-	if fn != nil {
-		fn()
+	if s, ok := a.(string); ok && c.OutputFile != "" {
+		f, err := os.OpenFile(c.OutputFile, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+		if err == nil {
+			f.WriteString(s + "\n")
+			f.Close()
+		}
 	}
 
 	c.ScanSuccessList = append(c.ScanSuccessList, a)
@@ -109,7 +114,7 @@ func (s *QueueScanner) Add(dataList ...*QueueScannerScanParams) {
 	s.ctx.dataList = append(s.ctx.dataList, dataList...)
 }
 
-func (s *QueueScanner) Start(doneFunc QueueScannerDoneFunc) {
+func (s *QueueScanner) Start() {
 	hideCursor()
 	defer showCursor()
 
@@ -119,10 +124,6 @@ func (s *QueueScanner) Start(doneFunc QueueScannerDoneFunc) {
 	close(s.queue)
 
 	s.wg.Wait()
-
-	if doneFunc != nil {
-		doneFunc(s.ctx)
-	}
 }
 
 func hideCursor() {
@@ -131,4 +132,8 @@ func hideCursor() {
 
 func showCursor() {
 	fmt.Print("\033[?25h")
+}
+
+func (s *QueueScanner) SetOutputFile(filename string) {
+	s.ctx.OutputFile = filename
 }

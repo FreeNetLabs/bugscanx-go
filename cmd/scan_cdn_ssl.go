@@ -4,7 +4,6 @@ import (
 	"bufio"
 	"context"
 	"crypto/tls"
-	"encoding/json"
 	"fmt"
 	"net"
 	"os"
@@ -20,7 +19,6 @@ import (
 var scanCdnSslCmd = &cobra.Command{
 	Use:     "cdn-ssl",
 	Short:   "Scan using CDN SSL proxy with payload injection to SSL targets.",
-	Long:    "Scan SSL targets by routing requests through a CDN SSL proxy, injecting payloads, and analyzing SSL responses. Supports proxy CIDR, host files, custom methods, and output options. Useful for testing SSL proxy chains and payload delivery.",
 	Example: "  bugscanx-go cdn-ssl --filename proxy.txt --target sslsite.com\n  bugscanx-go cdn-ssl --cidr 10.0.0.0/8 --target sslsite.com --payload test",
 	Run:     runScanCdnSsl,
 }
@@ -46,7 +44,7 @@ func init() {
 
 	scanCdnSslCmd.Flags().StringVarP(&cdnSslFlagProxyCidr, "cidr", "c", "", "cidr cdn proxy to scan e.g. 127.0.0.1/32")
 	scanCdnSslCmd.Flags().StringVar(&cdnSslFlagProxyHost, "proxy", "", "cdn proxy without port")
-	scanCdnSslCmd.Flags().StringVar(&cdnSslFlagProxyHostFilename, "filename", "", "cdn proxy filename without port")
+	scanCdnSslCmd.Flags().StringVarP(&cdnSslFlagProxyHostFilename, "filename", "f", "", "cdn proxy filename without port")
 	scanCdnSslCmd.Flags().IntVarP(&cdnSslFlagProxyPort, "port", "p", 443, "proxy port")
 	scanCdnSslCmd.Flags().StringVarP(&cdnSslFlagBug, "bug", "B", "", "bug to use when proxy is ip instead of domain")
 	scanCdnSslCmd.Flags().StringVarP(&cdnSslFlagMethod, "method", "M", "HEAD", "request method")
@@ -97,11 +95,6 @@ type scanCdnSslRequest struct {
 	Method    string
 	Target    string
 	Payload   string
-}
-
-type scanCdnSslResponse struct {
-	Request      *scanCdnSslRequest
-	ResponseLine []string
 }
 
 func scanCdnSsl(c *queuescanner.Ctx, p *queuescanner.QueueScannerScanParams) {
@@ -168,11 +161,7 @@ func scanCdnSsl(c *queuescanner.Ctx, p *queuescanner.QueueScannerScanParams) {
 			return
 		}
 
-		res := &scanCdnSslResponse{
-			Request:      req,
-			ResponseLine: make([]string, 0),
-		}
-
+		responseLines := make([]string, 0)
 		scanner := bufio.NewScanner(tlsConn)
 		isPrefix := true
 		for scanner.Scan() {
@@ -182,18 +171,18 @@ func scanCdnSsl(c *queuescanner.Ctx, p *queuescanner.QueueScannerScanParams) {
 			}
 			if isPrefix || strings.HasPrefix(line, "Location") || strings.HasPrefix(line, "Server") {
 				isPrefix = false
-				res.ResponseLine = append(res.ResponseLine, line)
+				responseLines = append(responseLines, line)
 			}
 		}
 
-		if len(res.ResponseLine) == 0 || !strings.Contains(res.ResponseLine[0], " 101 ") {
-			c.Logf("%-32s  %s", proxyHostPort, strings.Join(res.ResponseLine, " -- "))
+		if len(responseLines) == 0 || !strings.Contains(responseLines[0], " 101 ") {
+			c.Log(fmt.Sprintf("%-32s  %s", proxyHostPort, strings.Join(responseLines, " -- ")))
 			return
 		}
 
-		c.ScanSuccess(res, func() {
-			c.Log(fmt.Sprintf("%-32s  %s", proxyHostPort, strings.Join(res.ResponseLine, " -- ")))
-		})
+		formatted := fmt.Sprintf("%-32s  %s", proxyHostPort, strings.Join(responseLines, " -- "))
+		c.ScanSuccess(formatted)
+		c.Log(formatted)
 
 		chanResult <- true
 	}()
@@ -226,16 +215,12 @@ func runScanCdnSsl(cmd *cobra.Command, args []string) {
 	}
 
 	if cdnSslFlagProxyHostFilename != "" {
-		proxyHostFile, err := os.Open(cdnSslFlagProxyHostFilename)
+		lines, err := ReadLinesFromFile(cdnSslFlagProxyHostFilename)
 		if err != nil {
 			fmt.Println(err.Error())
 			os.Exit(1)
 		}
-		defer proxyHostFile.Close()
-
-		scanner := bufio.NewScanner(proxyHostFile)
-		for scanner.Scan() {
-			proxyHost := scanner.Text()
+		for _, proxyHost := range lines {
 			proxyHostList[proxyHost] = true
 		}
 	}
@@ -285,27 +270,6 @@ func runScanCdnSsl(cmd *cobra.Command, args []string) {
 
 	fmt.Printf("%s\n\n", getScanCdnSslPayloadDecoded())
 
-	queueScanner.Start(func(c *queuescanner.Ctx) {
-		if len(c.ScanSuccessList) == 0 {
-			return
-		}
-
-		c.Logf("")
-
-		jsonBytes, err := json.MarshalIndent(c.ScanSuccessList, "", "  ")
-		if err != nil {
-			fmt.Println(err.Error())
-			os.Exit(1)
-		}
-
-		fmt.Println(string(jsonBytes))
-
-		if cdnSslFlagOutput != "" {
-			err := os.WriteFile(cdnSslFlagOutput, jsonBytes, 0644)
-			if err != nil {
-				fmt.Println(err.Error())
-				os.Exit(1)
-			}
-		}
-	})
+	queueScanner.SetOutputFile(cdnSslFlagOutput)
+	queueScanner.Start()
 }

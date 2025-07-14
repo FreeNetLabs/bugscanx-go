@@ -8,7 +8,6 @@ import (
 	"net"
 	"net/http"
 	"os"
-	"strings"
 	"time"
 
 	"github.com/spf13/cobra"
@@ -19,7 +18,6 @@ import (
 var directCmd = &cobra.Command{
 	Use:     "direct",
 	Short:   "Scan using direct connection to targets.",
-	Long:    "Scan a list of hosts using direct HTTP(S) connections. Supports custom HTTP methods, HTTPS, and filtering by Location header.",
 	Example: "  bugscanx-go direct -f hosts.txt\n  bugscanx-go direct -f hosts.txt --https --method GET",
 	Run:     scanDirectRun,
 }
@@ -56,14 +54,6 @@ type scanDirectRequest struct {
 	Domain string
 }
 
-type scanDirectResponse struct {
-	Request    *scanDirectRequest
-	NetIPList  []net.IP
-	StatusCode int
-	Server     string
-	Location   string
-}
-
 func newHTTPClient() *http.Client {
 	return &http.Client{
 		CheckRedirect: func(req *http.Request, via []*http.Request) error {
@@ -76,7 +66,7 @@ func newHTTPClient() *http.Client {
 			},
 			DialContext: (&net.Dialer{
 				Timeout:   time.Duration(scanDirectFlagTimeoutConnect) * time.Second,
-				KeepAlive: 0,
+				KeepAlive: -1,
 			}).DialContext,
 			TLSHandshakeTimeout:   time.Duration(scanDirectFlagTimeoutTLS) * time.Second,
 			ResponseHeaderTimeout: time.Duration(scanDirectFlagTimeoutHeader) * time.Second,
@@ -127,16 +117,9 @@ func scanDirect(c *queuescanner.Ctx, p *queuescanner.QueueScannerScanParams) {
 		ip = netIPs[0].String()
 	}
 
-	res := &scanDirectResponse{
-		Request:    req,
-		NetIPList:  netIPs,
-		StatusCode: httpRes.StatusCode,
-		Server:     hServer,
-		Location:   hLocation,
-	}
-	c.ScanSuccess(res, nil)
-
-	c.Logf("%-15s  %-3d   %-16s    %s", ip, httpRes.StatusCode, hServer, req.Domain)
+	formatted := fmt.Sprintf("%-15s  %-3d   %-16s    %s", ip, httpRes.StatusCode, hServer, req.Domain)
+	c.ScanSuccess(formatted)
+	c.Log(formatted)
 }
 
 func scanDirectRun(cmd *cobra.Command, args []string) {
@@ -167,26 +150,6 @@ func scanDirectRun(cmd *cobra.Command, args []string) {
 			},
 		})
 	}
-	queueScanner.Start(func(c *queuescanner.Ctx) {
-		if len(c.ScanSuccessList) == 0 {
-			return
-		}
-
-		if scanDirectFlagOutput != "" {
-			outputList := make([]string, 0)
-			for _, data := range c.ScanSuccessList {
-				res, ok := data.(*scanDirectResponse)
-				if !ok {
-					continue
-				}
-				outputList = append(outputList, res.Request.Domain)
-			}
-
-			err := os.WriteFile(scanDirectFlagOutput, []byte(strings.Join(outputList, "\n")), 0644)
-			if err != nil {
-				fmt.Println(err.Error())
-				os.Exit(1)
-			}
-		}
-	})
+	queueScanner.SetOutputFile(scanDirectFlagOutput)
+	queueScanner.Start()
 }

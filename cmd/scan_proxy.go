@@ -3,7 +3,6 @@ package cmd
 import (
 	"bufio"
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"net"
@@ -20,7 +19,6 @@ import (
 var scanProxyCmd = &cobra.Command{
 	Use:     "proxy",
 	Short:   "Scan using a proxy with payload to a target.",
-	Long:    "Scan targets by routing requests through a proxy, injecting payloads, and analyzing responses. Supports proxy CIDR, host files, custom methods, and output options. Useful for testing proxy chains and payload delivery.",
 	Example: "  bugscanx-go proxy --cidr 192.168.1.0/24 --target example.com\n  bugscanx-go proxy --filename proxy.txt --target example.com --payload test",
 	Run:     runScanProxy,
 }
@@ -70,11 +68,6 @@ type scanProxyRequest struct {
 	Payload   string
 }
 
-type scanProxyResponse struct {
-	Request      *scanProxyRequest
-	ResponseLine []string
-}
-
 func scanProxy(c *queuescanner.Ctx, p *queuescanner.QueueScannerScanParams) {
 	req, ok := p.Data.(*scanProxyRequest)
 	if !ok {
@@ -91,17 +84,17 @@ func scanProxy(c *queuescanner.Ctx, p *queuescanner.QueueScannerScanParams) {
 	for {
 		dialCount++
 		if dialCount > 3 {
-			c.Log(fmt.Sprintf("%s - Timeout", proxyHostPort))
+			// Silently ignore timeout
 			return
 		}
 		conn, err = net.DialTimeout("tcp", proxyHostPort, 3*time.Second)
 		if err != nil {
 			if errors.As(err, &dnsErr) {
-				c.Log(proxyHostPort)
+				// Silently ignore DNS error
 				return
 			}
 			if e, ok := err.(net.Error); ok && e.Timeout() {
-				c.LogReplace(p.Name, "-", "Dial Timeout")
+				// Silently ignore dial timeout
 				continue
 			}
 			if opError, ok := err.(*net.OpError); ok {
@@ -111,6 +104,7 @@ func scanProxy(c *queuescanner.Ctx, p *queuescanner.QueueScannerScanParams) {
 					}
 				}
 			}
+			// Silently ignore other errors
 			return
 		}
 		defer conn.Close()
@@ -150,43 +144,29 @@ func scanProxy(c *queuescanner.Ctx, p *queuescanner.QueueScannerScanParams) {
 		}
 
 		if len(responseLines) == 0 {
-			c.Log(fmt.Sprintf("%s - Timeout", proxyHostPort))
+			// Silently ignore empty response (timeout)
 			chanResult <- false
 			return
 		}
 
 		if strings.Contains(responseLines[0], " 302 ") {
-			c.Log(fmt.Sprintf("%-32s Skipping 302 Response", proxyHostPort))
+			// Silently ignore 302 responses
 			chanResult <- true
 			return
 		}
 
-		var resultString string
-		if strings.Contains(responseLines[0], " 101 ") {
-			resultString = fmt.Sprintf("%-32s %s", proxyHostPort, strings.Join(responseLines, " -- "))
-		} else {
-			resultString = fmt.Sprintf("%-32s %s", proxyHostPort, strings.Join(responseLines, " -- "))
-		}
+		resultString := fmt.Sprintf("%-32s %s", proxyHostPort, strings.Join(responseLines, " -- "))
+		c.ScanSuccess(resultString)
 		c.Log(resultString)
-
-		if scanProxyFlagOutput != "" {
-			f, err := os.OpenFile(scanProxyFlagOutput, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
-			if err == nil {
-				defer f.Close()
-				f.WriteString(resultString + "\n")
-			}
-		}
 
 		chanResult <- true
 	}()
 
 	select {
-	case success := <-chanResult:
-		if !success {
-			c.Log(fmt.Sprintf("Failed to process: %s", proxyHostPort))
-		}
+	case <-chanResult:
+		// Only log successful/interesting results, already handled in goroutine
 	case <-ctxResultTimeout.Done():
-		c.Log(fmt.Sprintf("Timeout: %s", proxyHostPort))
+		// Silently ignore context timeout
 	}
 }
 
@@ -209,16 +189,12 @@ func runScanProxy(cmd *cobra.Command, args []string) {
 	}
 
 	if scanProxyFlagProxyHostFilename != "" {
-		proxyHostFile, err := os.Open(scanProxyFlagProxyHostFilename)
+		lines, err := ReadLinesFromFile(scanProxyFlagProxyHostFilename)
 		if err != nil {
 			fmt.Println(err.Error())
 			os.Exit(1)
 		}
-		defer proxyHostFile.Close()
-
-		scanner := bufio.NewScanner(proxyHostFile)
-		for scanner.Scan() {
-			proxyHost := scanner.Text()
+		for _, proxyHost := range lines {
 			proxyHostList[proxyHost] = true
 		}
 	}
@@ -268,35 +244,6 @@ func runScanProxy(cmd *cobra.Command, args []string) {
 
 	fmt.Printf("%s\n\n", getScanProxyPayloadDecoded())
 
-	queueScanner.Start(func(c *queuescanner.Ctx) {
-		if len(c.ScanSuccessList) == 0 {
-			return
-		}
-
-		c.Log("\n")
-
-		for _, scanSuccess := range c.ScanSuccessList {
-			res := scanSuccess.(*scanProxyResponse)
-			requestHostPort := fmt.Sprintf("%s:%d", res.Request.ProxyHost, res.Request.ProxyPort)
-			requestTargetBug := fmt.Sprintf("%s -- %s", res.Request.Target, res.Request.Bug)
-			if res.Request.Target == res.Request.Bug {
-				requestTargetBug = res.Request.Target
-			}
-			c.Log(fmt.Sprintf("%-32s  %s -- %s", requestHostPort, requestTargetBug, res.Request.Payload))
-		}
-
-		jsonBytes, err := json.MarshalIndent(c.ScanSuccessList, "", "  ")
-		if err != nil {
-			fmt.Println(err.Error())
-			os.Exit(1)
-		}
-
-		if scanProxyFlagOutput != "" {
-			err := os.WriteFile(scanProxyFlagOutput, jsonBytes, 0644)
-			if err != nil {
-				fmt.Println(err.Error())
-				os.Exit(1)
-			}
-		}
-	})
+	queueScanner.SetOutputFile(scanProxyFlagOutput)
+	queueScanner.Start()
 }
