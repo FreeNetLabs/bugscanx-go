@@ -93,7 +93,7 @@ func runScanSNI(cmd *cobra.Command, args []string) {
 		fmt.Println(err.Error())
 		os.Exit(1)
 	}
-	mapDomainList := make(map[string]bool)
+	var domains []string
 	for _, domain := range lines {
 		if sniFlagDeep > 0 {
 			domainSplit := strings.Split(domain, ".")
@@ -101,14 +101,14 @@ func runScanSNI(cmd *cobra.Command, args []string) {
 				domain = strings.Join(domainSplit[len(domainSplit)-sniFlagDeep:], ".")
 			}
 		}
-		mapDomainList[domain] = true
+		domains = append(domains, domain)
 	}
 
 	fmt.Printf("%-16s %-20s\n", "IP Address", "SNI")
 	fmt.Printf("%-16s %-20s\n", "----------", "----")
 
 	queueScanner := queuescanner.NewQueueScanner(globalFlagThreads, scanSNI)
-	for domain := range mapDomainList {
+	for _, domain := range domains {
 		queueScanner.Add(&queuescanner.QueueScannerScanParams{
 			Name: domain,
 			Data: domain,

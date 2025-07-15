@@ -55,7 +55,6 @@ func pingHost(ctx *queuescanner.Ctx, params *queuescanner.QueueScannerScanParams
 }
 
 func pingRun(cmd *cobra.Command, args []string) {
-
 	hosts, err := ReadLinesFromFile(pingFlagFilename)
 	if err != nil {
 		fmt.Printf("Error reading file: %v\n", err)

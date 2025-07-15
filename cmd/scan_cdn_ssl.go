@@ -61,32 +61,6 @@ func init() {
 	cdnSslFlagMethod = strings.ToUpper(cdnSslFlagMethod)
 }
 
-func ipInc(ip net.IP) {
-	for j := len(ip) - 1; j >= 0; j-- {
-		ip[j]++
-		if ip[j] > 0 {
-			break
-		}
-	}
-}
-
-func ipListFromCidr(cidr string) ([]string, error) {
-	ip, ipnet, err := net.ParseCIDR(cidr)
-	if err != nil {
-		return nil, err
-	}
-
-	var ips []string
-	for ip := ip.Mask(ipnet.Mask); ipnet.Contains(ip); ipInc(ip) {
-		ipString := ip.String()
-		ips = append(ips, ipString)
-	}
-	if len(ips) <= 1 {
-		return ips, nil
-	}
-
-	return ips[1 : len(ips)-1], nil
-}
 
 type scanCdnSslRequest struct {
 	ProxyHost string

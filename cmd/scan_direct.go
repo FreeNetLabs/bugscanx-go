@@ -1,7 +1,6 @@
 package cmd
 
 import (
-	"bufio"
 	"context"
 	"crypto/tls"
 	"fmt"
@@ -42,10 +41,10 @@ func init() {
 	directCmd.Flags().StringVarP(&scanDirectFlagMethod, "method", "m", "HEAD", "HTTP method to use (e.g. HEAD, GET, POST)")
 	directCmd.Flags().BoolVar(&scanDirectFlagHttps, "https", false, "use https")
 	directCmd.Flags().StringVar(&scanDirectFlagHideLocation, "hide-location", "https://jio.com/BalanceExhaust", "hide results with this Location header")
-	directCmd.Flags().IntVar(&scanDirectFlagTimeoutConnect, "timeout-connect", 5, "TCP connect timeout in seconds (default 5)")
-	directCmd.Flags().IntVar(&scanDirectFlagTimeoutTLS, "timeout-tls", 2, "TLS handshake timeout in seconds (default 2)")
-	directCmd.Flags().IntVar(&scanDirectFlagTimeoutHeader, "timeout-header", 3, "Response header timeout in seconds (default 3)")
-	directCmd.Flags().IntVar(&scanDirectFlagTimeoutRequest, "timeout-request", 10, "Overall request timeout in seconds (default 10)")
+	directCmd.Flags().IntVar(&scanDirectFlagTimeoutConnect, "timeout-connect", 5, "TCP connect timeout in seconds")
+	directCmd.Flags().IntVar(&scanDirectFlagTimeoutTLS, "timeout-tls", 2, "TLS handshake timeout in seconds")
+	directCmd.Flags().IntVar(&scanDirectFlagTimeoutHeader, "timeout-header", 3, "Response header timeout in seconds")
+	directCmd.Flags().IntVar(&scanDirectFlagTimeoutRequest, "timeout-request", 10, "Overall request timeout in seconds")
 
 	directCmd.MarkFlagRequired("filename")
 }
@@ -123,26 +122,17 @@ func scanDirect(c *queuescanner.Ctx, p *queuescanner.QueueScannerScanParams) {
 }
 
 func scanDirectRun(cmd *cobra.Command, args []string) {
-	domainList := make(map[string]bool)
-
-	domainListFile, err := os.Open(scanDirectFlagFilename)
+	hosts, err := ReadLinesFromFile(scanDirectFlagFilename)
 	if err != nil {
 		fmt.Println(err.Error())
 		os.Exit(1)
-	}
-	defer domainListFile.Close()
-
-	scanner := bufio.NewScanner(domainListFile)
-	for scanner.Scan() {
-		domain := scanner.Text()
-		domainList[domain] = true
 	}
 
 	fmt.Printf("%-15s  %-3s  %-16s    %s\n", "IP Address", "Code", "Server", "Host")
 	fmt.Printf("%-15s  %-3s  %-16s    %s\n", "----------", "----", "------", "----")
 
 	queueScanner := queuescanner.NewQueueScanner(globalFlagThreads, scanDirect)
-	for domain := range domainList {
+	for _, domain := range hosts {
 		queueScanner.Add(&queuescanner.QueueScannerScanParams{
 			Name: domain,
 			Data: &scanDirectRequest{

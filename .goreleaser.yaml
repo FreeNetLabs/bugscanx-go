@@ -3,17 +3,34 @@ before:
     - go mod tidy
     - go generate ./...
 builds:
-  - env:
+  - id: desktop
+    env:
       - CGO_ENABLED=0
     goos:
       - linux
-      - darwin
       - windows
+      - darwin
     goarch:
       - amd64
       - arm64
+
+  - id: android
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - android
+    goarch:
+      - arm64
+      - arm
+    goarm:
+      - 7
 archives:
-  - name_template: "{{ .ProjectName }}_v{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+  - name_template: >
+      {{- if eq .Os "android" -}}
+        {{ .ProjectName }}_v{{ .Version }}_android_{{- if eq .Arch "arm64" -}}arm64-v8a{{- else -}}armeabi-v7a{{- end -}}
+      {{- else -}}
+        {{ .ProjectName }}_v{{ .Version }}_{{ .Os }}_{{ .Arch }}
+      {{- end }}
     format_overrides:
       - goos: windows
         format: zip
