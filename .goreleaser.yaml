@@ -14,13 +14,21 @@ builds:
       - amd64
       - arm64
 
-  - id: android
+  - id: android-arm64
     env:
       - CGO_ENABLED=0
     goos:
       - android
     goarch:
       - arm64
+
+  - id: android-arm
+    env:
+      - CGO_ENABLED=1
+      - CC=armv7a-linux-androideabi21-clang
+    goos:
+      - android
+    goarch:
       - arm
     goarm:
       - 7
