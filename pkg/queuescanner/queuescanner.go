@@ -11,11 +11,11 @@ import (
 )
 
 type Ctx struct {
-	ScanComplete    int64
-	ScanSuccessList []any
-	dataList        []*QueueScannerScanParams
-	mx              sync.Mutex
-	OutputFile      string
+	ScanComplete     int64
+	ScanSuccessCount int64
+	dataList         []*QueueScannerScanParams
+	mx               sync.Mutex
+	OutputFile       string
 }
 
 func (c *Ctx) Log(a ...any) {
@@ -27,7 +27,7 @@ func (c *Ctx) Logf(f string, a ...any) {
 }
 
 func (c *Ctx) LogReplace(a ...string) {
-	scanSuccess := len(c.ScanSuccessList)
+	scanSuccess := atomic.LoadInt64(&c.ScanSuccessCount)
 	scanComplete := atomic.LoadInt64(&c.ScanComplete)
 	scanCompletePercentage := float64(scanComplete) / float64(len(c.dataList)) * 100
 	s := fmt.Sprintf(
@@ -49,18 +49,17 @@ func (c *Ctx) LogReplacef(f string, a ...any) {
 }
 
 func (c *Ctx) ScanSuccess(a any) {
-	c.mx.Lock()
-	defer c.mx.Unlock()
-
 	if s, ok := a.(string); ok && c.OutputFile != "" {
+		c.mx.Lock()
 		f, err := os.OpenFile(c.OutputFile, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
 		if err == nil {
 			f.WriteString(s + "\n")
 			f.Close()
 		}
+		c.mx.Unlock()
 	}
 
-	c.ScanSuccessList = append(c.ScanSuccessList, a)
+	atomic.AddInt64(&c.ScanSuccessCount, 1)
 }
 
 type QueueScannerScanParams struct {
