@@ -3,4 +3,5 @@
 /builds
 /dist
 *.txt
+*.exe
 /.github/chatmodes
