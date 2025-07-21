@@ -84,17 +84,14 @@ func scanProxy(c *queuescanner.Ctx, p *queuescanner.QueueScannerScanParams) {
 	for {
 		dialCount++
 		if dialCount > 3 {
-			// Silently ignore timeout
 			return
 		}
 		conn, err = net.DialTimeout("tcp", proxyHostPort, 3*time.Second)
 		if err != nil {
 			if errors.As(err, &dnsErr) {
-				// Silently ignore DNS error
 				return
 			}
 			if e, ok := err.(net.Error); ok && e.Timeout() {
-				// Silently ignore dial timeout
 				continue
 			}
 			if opError, ok := err.(*net.OpError); ok {
@@ -104,7 +101,6 @@ func scanProxy(c *queuescanner.Ctx, p *queuescanner.QueueScannerScanParams) {
 					}
 				}
 			}
-			// Silently ignore other errors
 			return
 		}
 		defer conn.Close()
@@ -119,9 +115,7 @@ func scanProxy(c *queuescanner.Ctx, p *queuescanner.QueueScannerScanParams) {
 	go func() {
 		payload := req.Payload
 		payload = strings.ReplaceAll(payload, "[host]", req.Target)
-		payload = strings.ReplaceAll(payload, "[crlf]", "[cr][lf]")
-		payload = strings.ReplaceAll(payload, "[cr]", "\r")
-		payload = strings.ReplaceAll(payload, "[lf]", "\n")
+		payload = strings.ReplaceAll(payload, "[crlf]", "\r\n")
 
 		_, err = conn.Write([]byte(payload))
 		if err != nil {
@@ -144,13 +138,11 @@ func scanProxy(c *queuescanner.Ctx, p *queuescanner.QueueScannerScanParams) {
 		}
 
 		if len(responseLines) == 0 {
-			// Silently ignore empty response (timeout)
 			chanResult <- false
 			return
 		}
 
 		if strings.Contains(responseLines[0], " 302 ") {
-			// Silently ignore 302 responses
 			chanResult <- true
 			return
 		}
@@ -164,9 +156,7 @@ func scanProxy(c *queuescanner.Ctx, p *queuescanner.QueueScannerScanParams) {
 
 	select {
 	case <-chanResult:
-		// Only log successful/interesting results, already handled in goroutine
 	case <-ctxResultTimeout.Done():
-		// Silently ignore context timeout
 	}
 }
 

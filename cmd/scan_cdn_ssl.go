@@ -126,9 +126,7 @@ func scanCdnSsl(c *queuescanner.Ctx, p *queuescanner.QueueScannerScanParams) {
 	go func() {
 		payload := req.Payload
 		payload = strings.ReplaceAll(payload, "[host]", req.Target)
-		payload = strings.ReplaceAll(payload, "[crlf]", "[cr][lf]")
-		payload = strings.ReplaceAll(payload, "[cr]", "\r")
-		payload = strings.ReplaceAll(payload, "[lf]", "\n")
+		payload = strings.ReplaceAll(payload, "[crlf]", "\r\n")
 
 		_, err = tlsConn.Write([]byte(payload))
 		if err != nil {
