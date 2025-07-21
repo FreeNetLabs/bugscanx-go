@@ -11,14 +11,13 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
           go-version: "1.22.3"
-
-      - name: Clean dist directory
-        run: rm -rf dist
 
       - name: Install Android NDK
         run: |
@@ -26,6 +25,10 @@ jobs:
           curl -sSL https://dl.google.com/android/repository/android-ndk-r25c-linux.zip -o ndk.zip
           unzip -q ndk.zip -d $HOME/android-ndk
           echo "$HOME/android-ndk/android-ndk-r25c/toolchains/llvm/prebuilt/linux-x86_64/bin" >> $GITHUB_PATH
+        continue-on-error: true
+
+      - name: Remove dirty files
+        run: rm -f ndk.zip
 
       - name: Run GoReleaser
         uses: goreleaser/goreleaser-action@v2
