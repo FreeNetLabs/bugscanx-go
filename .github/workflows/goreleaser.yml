@@ -6,33 +6,24 @@ on:
       - "*"
 
 jobs:
+
   goreleaser:
     runs-on: ubuntu-latest
-
     steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
+      - uses: actions/checkout@v2
 
       - name: Set up Go
-        uses: actions/setup-go@v5
+        uses: actions/setup-go@v2
         with:
-          go-version: "1.22.3"
+          go-version: 1.23.2
 
-      - name: Install Android NDK
-        run: |
-          mkdir -p $HOME/android-ndk
-          curl -sSL https://dl.google.com/android/repository/android-ndk-r25c-linux.zip -o ndk.zip
-          unzip -q ndk.zip -d $HOME/android-ndk
-          echo "$HOME/android-ndk/android-ndk-r25c/toolchains/llvm/prebuilt/linux-x86_64/bin" >> $GITHUB_PATH
-        continue-on-error: true
 
-      - name: Remove dirty files
-        run: rm -f ndk.zip
+      - name: Clean dist directory
+        run: rm -rf dist
 
       - name: Run GoReleaser
-        uses: goreleaser/goreleaser-action@v2
+        uses: goreleaser/goreleaser-action@v2.8.1
         with:
-          args: release --clean
+          args: release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

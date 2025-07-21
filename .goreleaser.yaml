@@ -1,53 +1,26 @@
-version: 2
-
 before:
   hooks:
     - go mod tidy
     - go generate ./...
-
 builds:
-  - id: desktop
-    env:
+  - env:
       - CGO_ENABLED=0
     goos:
       - linux
-      - windows
       - darwin
+      - windows
     goarch:
       - amd64
       - arm64
-
-  - id: android-arm64
-    env:
-      - CGO_ENABLED=0
-    goos:
-      - android
-    goarch:
-      - arm64
-
-  - id: android-arm
-    env:
-      - CGO_ENABLED=1
-      - CC=armv7a-linux-androideabi21-clang
-    goos:
-      - android
-    goarch:
-      - arm
-    goarm:
-      - 7
-
 archives:
-  - name_template: '{{ .ProjectName }}_v{{ .Version }}_{{ .Os }}_{{ .Arch }}{{- if eq .Arch "arm" }}{{- if eq .Goarm "7" }}eabi-v7a{{ end }}{{- end }}'
+  - name_template: "{{ .ProjectName }}_v{{ .Version }}_{{ .Os }}_{{ .Arch }}"
     format_overrides:
       - goos: windows
         format: zip
-
 checksum:
   name_template: "{{ .ProjectName }}_v{{ .Version }}_checksums.txt"
-
 snapshot:
   name_template: "{{ incpatch .Version }}-next"
-
 changelog:
   sort: asc
   filters:
