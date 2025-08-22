@@ -140,10 +140,11 @@ func scanDirect(c *queuescanner.Ctx, p *queuescanner.QueueScannerScanParams) {
 		return
 	}
 
-	netIPs, _ := net.LookupIP(req.Domain)
 	ip := "unknown"
-	if len(netIPs) > 0 {
-		ip = netIPs[0].String()
+	if remoteAddr := conn.RemoteAddr(); remoteAddr != nil {
+		if tcpAddr, ok := remoteAddr.(*net.TCPAddr); ok {
+			ip = tcpAddr.IP.String()
+		}
 	}
 
 	formatted := fmt.Sprintf("%-15s  %-3d   %-16s    %s", ip, statusCode, hServer, req.Domain)
