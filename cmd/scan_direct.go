@@ -1,12 +1,12 @@
 package cmd
 
 import (
-	"context"
 	"crypto/tls"
 	"fmt"
 	"net"
-	"net/http"
 	"os"
+	"strconv"
+	"strings"
 	"time"
 
 	"github.com/spf13/cobra"
@@ -53,58 +53,88 @@ type scanDirectRequest struct {
 	Domain string
 }
 
-func newHTTPClient() *http.Client {
-	return &http.Client{
-		CheckRedirect: func(req *http.Request, via []*http.Request) error {
-			return http.ErrUseLastResponse
-		},
-		Transport: &http.Transport{
-			DisableKeepAlives: true,
-			TLSClientConfig: &tls.Config{
-				InsecureSkipVerify: true,
-			},
-			DialContext: (&net.Dialer{
-				Timeout:   time.Duration(scanDirectFlagTimeoutConnect) * time.Second,
-				KeepAlive: -1,
-			}).DialContext,
-			TLSHandshakeTimeout:   time.Duration(scanDirectFlagTimeoutTLS) * time.Second,
-			ResponseHeaderTimeout: time.Duration(scanDirectFlagTimeoutHeader) * time.Second,
-		},
+func dialWithTimeout(network, address string, timeout time.Duration, useTLS bool) (net.Conn, error) {
+	if useTLS {
+		return tls.DialWithDialer(&net.Dialer{Timeout: timeout}, network, address, &tls.Config{
+			InsecureSkipVerify: true,
+		})
 	}
+	return net.DialTimeout(network, address, timeout)
+}
+
+func parseHTTPResponse(response string) (statusCode int, server string, location string) {
+	lines := strings.Split(response, "\n")
+
+	// Parse status line
+	if len(lines) > 0 {
+		parts := strings.Fields(lines[0])
+		if len(parts) >= 2 {
+			if code, err := strconv.Atoi(parts[1]); err == nil {
+				statusCode = code
+			}
+		}
+	}
+
+	// Parse headers
+	for _, line := range lines[1:] {
+		line = strings.TrimSpace(line)
+		if line == "" {
+			break
+		}
+
+		if strings.HasPrefix(strings.ToLower(line), "server:") {
+			server = strings.TrimSpace(line[7:])
+		} else if strings.HasPrefix(strings.ToLower(line), "location:") {
+			location = strings.TrimSpace(line[9:])
+		}
+	}
+
+	return statusCode, server, location
 }
 
 func scanDirect(c *queuescanner.Ctx, p *queuescanner.QueueScannerScanParams) {
 	req := p.Data.(*scanDirectRequest)
 
-	httpScheme := "http"
+	port := "80"
 	if scanDirectFlagHttps {
-		httpScheme = "https"
+		port = "443"
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), time.Duration(scanDirectFlagTimeoutRequest)*time.Second)
-	defer cancel()
+	address := fmt.Sprintf("%s:%s", req.Domain, port)
+
+	// Establish connection with timeout
+	conn, err := dialWithTimeout("tcp", address, time.Duration(scanDirectFlagTimeoutConnect)*time.Second, scanDirectFlagHttps)
+	if err != nil {
+		return
+	}
+	defer conn.Close()
+
+	// Set overall timeout for the request
+	conn.SetDeadline(time.Now().Add(time.Duration(scanDirectFlagTimeoutRequest) * time.Second))
 
 	method := scanDirectFlagMethod
 	if method == "" {
 		method = "HEAD"
 	}
 
-	httpReq, err := http.NewRequest(method, fmt.Sprintf("%s://%s", httpScheme, req.Domain), nil)
+	// Craft HTTP request
+	httpRequest := fmt.Sprintf("%s / HTTP/1.1\r\nHost: %s\r\nUser-Agent: bugscanx-go/1.0\r\nConnection: close\r\n\r\n", method, req.Domain)
+
+	// Send request
+	_, err = conn.Write([]byte(httpRequest))
 	if err != nil {
 		return
 	}
 
-	httpReq = httpReq.WithContext(ctx)
-
-	client := newHTTPClient()
-	httpRes, err := client.Do(httpReq)
+	// Read response
+	buffer := make([]byte, 4096)
+	n, err := conn.Read(buffer)
 	if err != nil {
 		return
 	}
-	defer httpRes.Body.Close()
 
-	hServer := httpRes.Header.Get("Server")
-	hLocation := httpRes.Header.Get("Location")
+	response := string(buffer[:n])
+	statusCode, hServer, hLocation := parseHTTPResponse(response)
 
 	if scanDirectFlagHideLocation != "" && hLocation == scanDirectFlagHideLocation {
 		return
@@ -116,7 +146,7 @@ func scanDirect(c *queuescanner.Ctx, p *queuescanner.QueueScannerScanParams) {
 		ip = netIPs[0].String()
 	}
 
-	formatted := fmt.Sprintf("%-15s  %-3d   %-16s    %s", ip, httpRes.StatusCode, hServer, req.Domain)
+	formatted := fmt.Sprintf("%-15s  %-3d   %-16s    %s", ip, statusCode, hServer, req.Domain)
 	c.ScanSuccess(formatted)
 	c.Log(formatted)
 }
