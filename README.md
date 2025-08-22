@@ -1,77 +1,60 @@
 
-<h1 align="center">BugScanX-Go</h1>
+# BugScanX-Go
 
-<p align="center"><b>Advanced SNI Bug Host Scanner</b></p>
-<p align="center">Enhanced fork of BugScanner-Go with improved features, speed, and reliability.</p>
+**Advanced SNI Bug Host Scanner** - Enhanced fork of BugScanner-Go with improved features, speed, and reliability.
 
-<div align="center">
-  <a href="https://t.me/BugscanX">
-    <img src="https://img.shields.io/badge/Telegram-Join%20Group-0088cc?style=for-the-badge&logo=telegram" alt="Telegram">
-  </a>
-  <img src="https://img.shields.io/github/go-mod/go-version/Ayanrajpoot10/bugscanx-go?style=for-the-badge" alt="Go Version">
-  <img src="https://img.shields.io/github/license/Ayanrajpoot10/bugscanx-go?style=for-the-badge" alt="License">
-</div>
-
+[![Telegram](https://img.shields.io/badge/Telegram-Join%20Group-0088cc?style=flat-square&logo=telegram)](https://t.me/BugscanX)
+[![Go Version](https://img.shields.io/github/go-mod/go-version/Ayanrajpoot10/bugscanx-go?style=flat-square)](https://github.com/Ayanrajpoot10/bugscanx-go)
+[![License](https://img.shields.io/github/license/Ayanrajpoot10/bugscanx-go?style=flat-square)](LICENSE)
+[![Release](https://img.shields.io/github/v/release/Ayanrajpoot10/bugscanx-go?style=flat-square)](https://github.com/Ayanrajpoot10/bugscanx-go/releases)
 
 ## Installation
 
-```bash
-go install -v github.com/Ayanrajpoot10/bugscanx-go@latest
-# Add Go bin to your PATH if needed:
-echo 'export PATH="$PATH:$HOME/go/bin"' >> $HOME/.bashrc && source $HOME/.bashrc
-```
+### Prebuilt Binaries
+Download the latest prebuilt binary directly from the [Releases](https://github.com/Ayanrajpoot10/bugscanx-go/releases) section. Available for Windows, Linux, and macOS.
 
----
+### Build from Source
+
+```bash
+go install github.com/Ayanrajpoot10/bugscanx-go@latest
+```
 
 ## Usage
 
-Show help:
+### Quick Start
 ```bash
+# Show all available commands
 bugscanx-go --help
+
+# Direct scan
+bugscanx-go direct -f domains.txt -o output.txt
+
+# CDN SSL scan
+bugscanx-go cdn-ssl --proxy-filename proxies.txt --target example.com
+
+# SNI scan with custom parameters
+bugscanx-go sni -f subdomains.txt --threads 16 --timeout 8 --deep 3
 ```
 
-### Example Commands
+### Available Commands
+- `direct` - Direct domain scanning
+- `cdn-ssl` - CDN SSL scanning
+- `proxy` - Proxy-based scanning
+- `sni` - SNI (Server Name Indication) scanning
+- `ping` - TCP ping scanning
 
-**Direct scan:**
-```bash
-bugscanx-go direct -f example.txt -o cf.txt
-```
-
-**CDN SSL scan:**
-```bash
-bugscanx-go cdn-ssl --proxy-filename cf.txt --target ws.example.com
-```
-
-**Proxy scan:**
-```bash
-bugscanx-go proxy -f example.txt --target ws.example.com
-```
-
-**SNI scan:**
-```bash
-bugscanx-go sni -f example.com.txt --threads 16 --timeout 8 --deep 3
-```
-
-**Ping scan:**
-```bash
-bugscanx-go ping -f example.txt --threads 15 -o save.txt
-```
-
----
-
-## Integrations & Tips
-
-- For subdomain enumeration, use [Subfinder](https://github.com/projectdiscovery/subfinder#installation).
-- Output files can be used as input for other tools in your workflow.
-- Join our [Telegram](https://t.me/BugscanX) for support and updates.
-
----
+## Features
+- High-performance concurrent scanning
+- Multiple scan modes for different use cases
+- Customizable thread count and timeout settings
+- Output results to files for further processing
+- Cross-platform support (Windows, Linux, macOS)
 
 ## Contributing
+Contributions are welcome! Please feel free to submit issues, feature requests, or pull requests.
 
-Contributions, bug reports, and feature requests are welcome! Please open an issue or pull request.
-
----
+## Support
+Join our [Telegram group](https://t.me/BugscanX) for support, updates, and discussions.
 
 ## License
 
