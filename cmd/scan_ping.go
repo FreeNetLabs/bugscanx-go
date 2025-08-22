@@ -3,6 +3,7 @@ package cmd
 import (
 	"fmt"
 	"net"
+	"os"
 	"time"
 
 	"github.com/spf13/cobra"
@@ -57,8 +58,8 @@ func pingHost(ctx *queuescanner.Ctx, params *queuescanner.QueueScannerScanParams
 func pingRun(cmd *cobra.Command, args []string) {
 	hosts, err := ReadLinesFromFile(pingFlagFilename)
 	if err != nil {
-		fmt.Printf("Error reading file: %v\n", err)
-		return
+		fmt.Println(err.Error())
+		os.Exit(1)
 	}
 
 	fmt.Printf("%-16s %-20s\n", "IP Address", "Host")

@@ -36,7 +36,6 @@ func init() {
 	sniCmd.Flags().IntVar(&sniFlagTimeout, "timeout", 3, "handshake timeout")
 	sniCmd.Flags().StringVarP(&sniFlagOutput, "output", "o", "", "output result")
 
-	sniCmd.MarkFlagFilename("filename")
 	sniCmd.MarkFlagRequired("filename")
 }
 
