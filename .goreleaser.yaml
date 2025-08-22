@@ -23,6 +23,9 @@ builds:
     - goos: windows
       goarch: 'arm'
 
+  ldflags:
+    - -s -w
+
   binary: '{{ .ProjectName }}'
 
 archives:
