@@ -148,17 +148,17 @@ func scanDirect(c *queuescanner.Ctx, p *queuescanner.QueueScannerScanParams) {
 
 	address := fmt.Sprintf("%s:%s", req.Domain, port)
 
-	// Establish connection with timeout
+	// Establish connection with timeout (IPv4 only)
 	var conn net.Conn
 	var err error
 	timeout := time.Duration(scanDirectFlagTimeoutConnect) * time.Second
 
 	if scanDirectFlagHttps {
-		conn, err = tls.DialWithDialer(&net.Dialer{Timeout: timeout}, "tcp", address, &tls.Config{
+		conn, err = tls.DialWithDialer(&net.Dialer{Timeout: timeout}, "tcp4", address, &tls.Config{
 			InsecureSkipVerify: true,
 		})
 	} else {
-		conn, err = net.DialTimeout("tcp", address, timeout)
+		conn, err = net.DialTimeout("tcp4", address, timeout)
 	}
 
 	if err != nil {
