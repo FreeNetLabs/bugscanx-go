@@ -77,31 +77,6 @@ type scanDirectRequest struct {
 	Domain string
 }
 
-// dialWithTimeout establishes a network connection with a specified timeout.
-// It supports both plain TCP and TLS connections based on the useTLS parameter.
-//
-// This function provides a unified interface for creating connections with
-// proper timeout handling, which is essential for reliable scanning operations
-// that need to handle unresponsive or slow targets.
-//
-// Parameters:
-//   - network: The network type ("tcp", "tcp4", "tcp6")
-//   - address: The target address in "host:port" format
-//   - timeout: Maximum time to wait for connection establishment
-//   - useTLS: Whether to establish a TLS connection or plain TCP
-//
-// Returns:
-//   - net.Conn: The established connection
-//   - error: Any error that occurred during connection establishment
-func dialWithTimeout(network, address string, timeout time.Duration, useTLS bool) (net.Conn, error) {
-	if useTLS {
-		return tls.DialWithDialer(&net.Dialer{Timeout: timeout}, network, address, &tls.Config{
-			InsecureSkipVerify: true,
-		})
-	}
-	return net.DialTimeout(network, address, timeout)
-}
-
 // parseHTTPResponse parses a raw HTTP response string and extracts key information.
 //
 // This function parses HTTP response headers to extract status code, server information,
@@ -174,7 +149,18 @@ func scanDirect(c *queuescanner.Ctx, p *queuescanner.QueueScannerScanParams) {
 	address := fmt.Sprintf("%s:%s", req.Domain, port)
 
 	// Establish connection with timeout
-	conn, err := dialWithTimeout("tcp", address, time.Duration(scanDirectFlagTimeoutConnect)*time.Second, scanDirectFlagHttps)
+	var conn net.Conn
+	var err error
+	timeout := time.Duration(scanDirectFlagTimeoutConnect) * time.Second
+
+	if scanDirectFlagHttps {
+		conn, err = tls.DialWithDialer(&net.Dialer{Timeout: timeout}, "tcp", address, &tls.Config{
+			InsecureSkipVerify: true,
+		})
+	} else {
+		conn, err = net.DialTimeout("tcp", address, timeout)
+	}
+
 	if err != nil {
 		return // Connection failed, skip this target
 	}
