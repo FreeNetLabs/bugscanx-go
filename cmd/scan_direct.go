@@ -45,12 +45,6 @@ var (
 	// scanDirectFlagTimeoutConnect sets the TCP connection timeout in seconds
 	scanDirectFlagTimeoutConnect int
 
-	// scanDirectFlagTimeoutTLS sets the TLS handshake timeout in seconds
-	scanDirectFlagTimeoutTLS int
-
-	// scanDirectFlagTimeoutHeader sets the response header timeout in seconds
-	scanDirectFlagTimeoutHeader int
-
 	// scanDirectFlagTimeoutRequest sets the overall request timeout in seconds
 	scanDirectFlagTimeoutRequest int
 )
@@ -69,8 +63,6 @@ func init() {
 	directCmd.Flags().BoolVar(&scanDirectFlagHttps, "https", false, "use https")
 	directCmd.Flags().StringVar(&scanDirectFlagHideLocation, "hide-location", "https://jio.com/BalanceExhaust", "hide results with this Location header")
 	directCmd.Flags().IntVar(&scanDirectFlagTimeoutConnect, "timeout-connect", 5, "TCP connect timeout in seconds")
-	directCmd.Flags().IntVar(&scanDirectFlagTimeoutTLS, "timeout-tls", 2, "TLS handshake timeout in seconds")
-	directCmd.Flags().IntVar(&scanDirectFlagTimeoutHeader, "timeout-header", 3, "Response header timeout in seconds")
 	directCmd.Flags().IntVar(&scanDirectFlagTimeoutRequest, "timeout-request", 10, "Overall request timeout in seconds")
 
 	// Mark required flags
