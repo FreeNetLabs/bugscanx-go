@@ -14,10 +14,7 @@ import (
 	"github.com/ayanrajpoot10/bugscanx-go/pkg/queuescanner"
 )
 
-// sniCmd represents the Server Name Indication (SNI) scanning command.
-// This command performs TLS handshakes with target domains to verify
-// SSL certificate validity and server availability. SNI scanning is
-// particularly useful for identifying CDN endpoints and SSL-enabled services.
+// sniCmd performs SNI (Server Name Indication) scanning to verify SSL certificates.
 var sniCmd = &cobra.Command{
 	Use:     "sni",
 	Short:   "Scan server name indication (SNI) list from file.",
@@ -27,23 +24,13 @@ var sniCmd = &cobra.Command{
 
 // SNI command flags
 var (
-	// sniFlagFilename specifies the input file containing the list of domains for SNI scanning
-	sniFlagFilename string
-
-	// sniFlagDeep specifies the subdomain depth for domain processing
-	// (e.g., 2 for "example.com" from "sub.example.com")
-	sniFlagDeep int
-
-	// sniFlagTimeout sets the TLS handshake timeout in seconds
-	sniFlagTimeout int
-
-	// sniFlagOutput specifies the output file to save successful SNI scan results
-	sniFlagOutput string
+	sniFlagFilename string // Input file containing domains for SNI scanning
+	sniFlagDeep     int    // Subdomain depth for domain processing
+	sniFlagTimeout  int    // TLS handshake timeout in seconds
+	sniFlagOutput   string // Output file for successful results
 )
 
-// init initializes the SNI command and its flags.
-// This function is automatically called when the package is imported
-// and sets up the command configuration, flags, and validation rules.
+// init sets up the SNI command with flags and validation.
 func init() {
 	// Add the SNI command to the root command
 	rootCmd.AddCommand(sniCmd)
@@ -58,20 +45,7 @@ func init() {
 	sniCmd.MarkFlagRequired("filename")
 }
 
-// scanSNI performs an SNI (Server Name Indication) scan on a single domain.
-//
-// This function establishes a TCP connection to port 443 and performs a TLS
-// handshake using the domain name as the SNI value. This technique is useful
-// for identifying SSL-enabled services and CDN endpoints that respond to
-// specific domain names.
-//
-// The function implements retry logic for connection failures and handles
-// various timeout scenarios. It only reports successful TLS handshakes,
-// indicating that the domain is properly configured for SSL.
-//
-// Parameters:
-//   - c: Queue scanner context for logging and result reporting
-//   - p: Scan parameters containing the target domain information
+// scanSNI performs SNI scanning on a domain by establishing TLS connection.
 func scanSNI(c *queuescanner.Ctx, p *queuescanner.QueueScannerScanParams) {
 	domain := p.Data.(string)
 
@@ -128,19 +102,7 @@ func scanSNI(c *queuescanner.Ctx, p *queuescanner.QueueScannerScanParams) {
 	c.Log(formatted)
 }
 
-// runScanSNI is the main execution function for the SNI scan command.
-//
-// This function orchestrates the SNI scanning process by reading the input file,
-// processing domains based on the deep flag, setting up the queue scanner with
-// the specified number of threads, and initiating the scanning process.
-//
-// The deep flag allows for domain processing where only the top-level domains
-// are extracted from subdomains (e.g., extracting "example.com" from
-// "sub.domain.example.com" when deep=2).
-//
-// Parameters:
-//   - cmd: The Cobra command instance (unused but required by interface)
-//   - args: Command line arguments (unused but required by interface)
+// runScanSNI orchestrates the SNI scanning process with domain processing.
 func runScanSNI(cmd *cobra.Command, args []string) {
 	// Read target domains from input file
 	lines, err := ReadLinesFromFile(sniFlagFilename)

@@ -11,10 +11,7 @@ import (
 	"github.com/ayanrajpoot10/bugscanx-go/pkg/queuescanner"
 )
 
-// pingCmd represents the TCP ping scanning command.
-// This command performs TCP connectivity tests to determine if hosts
-// are reachable on specific ports. Unlike ICMP ping, TCP ping works
-// through firewalls and provides more accurate results for web services.
+// pingCmd performs TCP connectivity tests to determine host reachability.
 var pingCmd = &cobra.Command{
 	Use:     "ping",
 	Short:   "Scan hosts using TCP ping.",
@@ -24,22 +21,13 @@ var pingCmd = &cobra.Command{
 
 // Ping command flags
 var (
-	// pingFlagFilename specifies the input file containing the list of hosts to ping
-	pingFlagFilename string
-
-	// pingFlagTimeout sets the connection timeout in seconds for each ping attempt
-	pingFlagTimeout int
-
-	// pingFlagOutput specifies the output file to save successful ping results
-	pingFlagOutput string
-
-	// pingFlagPort specifies the TCP port to use for ping attempts
-	pingFlagPort int
+	pingFlagFilename string // Input file containing hosts to ping
+	pingFlagTimeout  int    // Connection timeout in seconds
+	pingFlagOutput   string // Output file for successful results
+	pingFlagPort     int    // TCP port to use for ping attempts
 )
 
-// init initializes the ping command and its flags.
-// This function is automatically called when the package is imported
-// and sets up the command configuration, flags, and validation rules.
+// init sets up the ping command with flags and validation.
 func init() {
 	// Add the ping command to the root command
 	rootCmd.AddCommand(pingCmd)
@@ -54,19 +42,7 @@ func init() {
 	pingCmd.MarkFlagRequired("filename")
 }
 
-// pingHost performs a TCP ping test on a single host.
-//
-// This function attempts to establish a TCP connection to the target host
-// on the specified port. If the connection is successful, it extracts the
-// IP address and reports the result. This method is more reliable than
-// ICMP ping for testing web service availability.
-//
-// The function handles connection timeouts gracefully and only reports
-// successful connections to avoid flooding the output with failures.
-//
-// Parameters:
-//   - ctx: Queue scanner context for logging and result reporting
-//   - params: Scan parameters containing the target host information
+// pingHost performs TCP ping test on a host and reports successful connections.
 func pingHost(ctx *queuescanner.Ctx, params *queuescanner.QueueScannerScanParams) {
 	host := params.Data.(string)
 
@@ -91,19 +67,7 @@ func pingHost(ctx *queuescanner.Ctx, params *queuescanner.QueueScannerScanParams
 	ctx.Log(formatted)
 }
 
-// pingRun is the main execution function for the ping command.
-//
-// This function orchestrates the TCP ping process by reading the input file,
-// setting up the queue scanner with the specified number of threads, and
-// initiating the ping process for all target hosts.
-//
-// The function handles file I/O, error reporting, result formatting, and
-// progress tracking throughout the ping process. It provides a clean
-// tabulated output showing IP addresses and corresponding hostnames.
-//
-// Parameters:
-//   - cmd: The Cobra command instance (unused but required by interface)
-//   - args: Command line arguments (unused but required by interface)
+// pingRun orchestrates the TCP ping process for all target hosts.
 func pingRun(cmd *cobra.Command, args []string) {
 	// Read target hosts from input file
 	hosts, err := ReadLinesFromFile(pingFlagFilename)

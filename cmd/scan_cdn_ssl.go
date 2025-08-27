@@ -16,11 +16,7 @@ import (
 	"github.com/ayanrajpoot10/bugscanx-go/pkg/queuescanner"
 )
 
-// scanCdnSslCmd represents the CDN SSL scanning command.
-// This command performs SSL-based proxy scanning through CDN endpoints
-// by establishing TLS connections and sending specially crafted requests.
-// It's particularly useful for testing CDN configurations and identifying
-// SSL-enabled proxy endpoints that might be misconfigured.
+// scanCdnSslCmd performs SSL-based proxy scanning through CDN endpoints.
 var scanCdnSslCmd = &cobra.Command{
 	Use:     "cdn-ssl",
 	Short:   "Scan using CDN SSL proxy with payload injection to SSL targets.",
@@ -30,49 +26,22 @@ var scanCdnSslCmd = &cobra.Command{
 
 // CDN SSL scanning command flags
 var (
-	// cdnSslFlagProxyCidr specifies a CIDR range to generate CDN proxy IP addresses
-	cdnSslFlagProxyCidr string
-
-	// cdnSslFlagProxyHost specifies a single CDN proxy host to test
-	cdnSslFlagProxyHost string
-
-	// cdnSslFlagProxyHostFilename specifies a file containing CDN proxy hosts
-	cdnSslFlagProxyHostFilename string
-
-	// cdnSslFlagProxyPort specifies the port to use for CDN SSL connections (default 443)
-	cdnSslFlagProxyPort int
-
-	// cdnSslFlagBug specifies the bug/domain to use in SNI when proxy is an IP
-	cdnSslFlagBug string
-
-	// cdnSslFlagMethod specifies the HTTP method for CDN SSL requests
-	cdnSslFlagMethod string
-
-	// cdnSslFlagTarget specifies the target domain for CDN SSL requests
-	cdnSslFlagTarget string
-
-	// cdnSslFlagPath specifies the request path template for CDN SSL requests
-	cdnSslFlagPath string
-
-	// cdnSslFlagScheme specifies the URL scheme (ws://, http://, etc.)
-	cdnSslFlagScheme string
-
-	// cdnSslFlagProtocol specifies the HTTP protocol version
-	cdnSslFlagProtocol string
-
-	// cdnSslFlagPayload specifies the custom payload template for CDN SSL requests
-	cdnSslFlagPayload string
-
-	// cdnSslFlagTimeout sets the TLS handshake timeout in seconds
-	cdnSslFlagTimeout int
-
-	// cdnSslFlagOutput specifies the output file to save successful CDN SSL scan results
-	cdnSslFlagOutput string
+	cdnSslFlagProxyCidr         string // CIDR range for CDN proxy IPs
+	cdnSslFlagProxyHost         string // Single CDN proxy host to test
+	cdnSslFlagProxyHostFilename string // File containing CDN proxy hosts
+	cdnSslFlagProxyPort         int    // Port for CDN SSL connections (default 443)
+	cdnSslFlagBug               string // Bug/domain for SNI when proxy is IP
+	cdnSslFlagMethod            string // HTTP method for CDN SSL requests
+	cdnSslFlagTarget            string // Target domain for CDN SSL requests
+	cdnSslFlagPath              string // Request path template
+	cdnSslFlagScheme            string // URL scheme (ws://, http://, etc.)
+	cdnSslFlagProtocol          string // HTTP protocol version
+	cdnSslFlagPayload           string // Custom payload template
+	cdnSslFlagTimeout           int    // TLS handshake timeout in seconds
+	cdnSslFlagOutput            string // Output file for successful results
 )
 
-// init initializes the CDN SSL command and its flags.
-// This function is automatically called when the package is imported
-// and sets up the command configuration, flags, and validation rules.
+// init sets up the CDN SSL command with flags and configuration.
 func init() {
 	// Add the CDN SSL command to the root command
 	rootCmd.AddCommand(scanCdnSslCmd)
@@ -98,44 +67,17 @@ func init() {
 	cdnSslFlagMethod = strings.ToUpper(cdnSslFlagMethod)
 }
 
-// scanCdnSslRequest represents a single CDN SSL scan request containing
-// all necessary parameters for testing a CDN SSL proxy server. This struct
-// encapsulates the SSL proxy configuration and request details.
+// scanCdnSslRequest contains parameters for testing a CDN SSL proxy server.
 type scanCdnSslRequest struct {
-	// ProxyHost is the IP address or hostname of the CDN SSL proxy server
-	ProxyHost string
-
-	// ProxyPort is the port number of the CDN SSL proxy server (typically 443)
-	ProxyPort int
-
-	// Bug is the hostname to use for SNI and Host header
-	Bug string
-
-	// Method is the HTTP method to use for the request
-	Method string
-
-	// Target is the target domain to request through the CDN SSL proxy
-	Target string
-
-	// Payload is the complete HTTP request payload to send over SSL
-	Payload string
+	ProxyHost string // IP address or hostname of CDN SSL proxy
+	ProxyPort int    // Port number (typically 443)
+	Bug       string // Hostname for SNI and Host header
+	Method    string // HTTP method for the request
+	Target    string // Target domain to request through proxy
+	Payload   string // Complete HTTP request payload over SSL
 }
 
-// scanCdnSsl performs a CDN SSL scan test on a single CDN SSL proxy server.
-//
-// This function establishes a TLS connection to the CDN proxy server and sends
-// a specially crafted HTTP request over the encrypted connection. It analyzes
-// the response to determine if the CDN SSL proxy is working correctly and
-// looks for specific response codes that indicate successful connections.
-//
-// The function implements comprehensive timeout handling, TLS handshake
-// verification, and response parsing specifically tailored for CDN SSL
-// proxy testing. It only reports successful connections (HTTP 101 responses)
-// which indicate proper WebSocket upgrade handling.
-//
-// Parameters:
-//   - c: Queue scanner context for logging and result reporting
-//   - p: Scan parameters containing the CDN SSL request configuration
+// scanCdnSsl tests CDN SSL proxy by establishing TLS connection and sending HTTP requests.
 func scanCdnSsl(c *queuescanner.Ctx, p *queuescanner.QueueScannerScanParams) {
 	req, ok := p.Data.(*scanCdnSslRequest)
 	if !ok {
@@ -250,25 +192,7 @@ func scanCdnSsl(c *queuescanner.Ctx, p *queuescanner.QueueScannerScanParams) {
 	}
 }
 
-// getScanCdnSslPayloadDecoded generates the final CDN SSL payload string by
-// replacing template placeholders with actual values.
-//
-// This function takes the CDN SSL payload template and substitutes various
-// placeholders with their actual values, including HTTP method, path, scheme,
-// protocol, and bug host. It's specifically designed for CDN SSL proxy testing.
-//
-// Parameters:
-//   - bug: Optional bug hostname to substitute in the payload
-//
-// Returns:
-//   - string: The processed payload with all placeholders replaced
-//
-// Template placeholders:
-//   - [method]: HTTP method (HEAD, GET, etc.)
-//   - [path]: Request path template
-//   - [scheme]: URL scheme (ws://, http://, etc.)
-//   - [protocol]: HTTP protocol version
-//   - [bug]: Bug hostname (if provided)
+// getScanCdnSslPayloadDecoded replaces template placeholders with actual values for CDN SSL.
 func getScanCdnSslPayloadDecoded(bug ...string) string {
 	payload := cdnSslFlagPayload
 	payload = strings.ReplaceAll(payload, "[method]", cdnSslFlagMethod)
@@ -281,20 +205,7 @@ func getScanCdnSslPayloadDecoded(bug ...string) string {
 	return payload
 }
 
-// runScanCdnSsl is the main execution function for the CDN SSL scan command.
-//
-// This function orchestrates the CDN SSL scanning process by collecting CDN
-// proxy hosts from various sources (CIDR, single host, or file), configuring
-// scan parameters specifically for SSL connections, and initiating the scanning
-// process using the queue scanner.
-//
-// The function handles multiple input methods, generates appropriate bug values
-// for different CDN proxy types, and provides feedback about the SSL payload
-// being used for scanning. It's specifically optimized for CDN SSL proxy testing.
-//
-// Parameters:
-//   - cmd: The Cobra command instance (unused but required by interface)
-//   - args: Command line arguments (unused but required by interface)
+// runScanCdnSsl orchestrates CDN SSL scanning from various proxy sources.
 func runScanCdnSsl(cmd *cobra.Command, args []string) {
 	proxyHostList := make(map[string]bool)
 

@@ -16,11 +16,7 @@ import (
 	"github.com/ayanrajpoot10/bugscanx-go/pkg/queuescanner"
 )
 
-// scanProxyCmd represents the proxy scanning command.
-// This command performs HTTP proxy scanning by sending specially crafted
-// requests through potential proxy servers to test for proxy functionality
-// and potential vulnerabilities. It's particularly useful for discovering
-// open proxies and testing proxy configurations.
+// scanProxyCmd performs HTTP proxy scanning with custom payloads.
 var scanProxyCmd = &cobra.Command{
 	Use:     "proxy",
 	Short:   "Scan using a proxy with payload to a target.",
@@ -30,46 +26,21 @@ var scanProxyCmd = &cobra.Command{
 
 // Proxy scanning command flags
 var (
-	// scanProxyFlagProxyCidr specifies a CIDR range to generate proxy IP addresses
-	scanProxyFlagProxyCidr string
-
-	// scanProxyFlagProxyHost specifies a single proxy host to test
-	scanProxyFlagProxyHost string
-
-	// scanProxyFlagProxyHostFilename specifies a file containing proxy hosts
-	scanProxyFlagProxyHostFilename string
-
-	// scanProxyFlagProxyPort specifies the port to use for proxy connections
-	scanProxyFlagProxyPort int
-
-	// scanProxyFlagBug specifies the bug/domain to use in requests when proxy is an IP
-	scanProxyFlagBug string
-
-	// scanProxyFlagMethod specifies the HTTP method for proxy requests
-	scanProxyFlagMethod string
-
-	// scanProxyFlagTarget specifies the target server for proxy requests
-	scanProxyFlagTarget string
-
-	// scanProxyFlagPath specifies the request path for proxy requests
-	scanProxyFlagPath string
-
-	// scanProxyFlagProtocol specifies the HTTP protocol version
-	scanProxyFlagProtocol string
-
-	// scanProxyFlagPayload specifies the custom payload template for proxy requests
-	scanProxyFlagPayload string
-
-	// scanProxyFlagTimeout sets the proxy connection timeout in seconds
-	scanProxyFlagTimeout int
-
-	// scanProxyFlagOutput specifies the output file to save successful proxy scan results
-	scanProxyFlagOutput string
+	scanProxyFlagProxyCidr         string // CIDR range for proxy IP generation
+	scanProxyFlagProxyHost         string // Single proxy host to test
+	scanProxyFlagProxyHostFilename string // File containing proxy hosts
+	scanProxyFlagProxyPort         int    // Port for proxy connections
+	scanProxyFlagBug               string // Domain to use when proxy is IP
+	scanProxyFlagMethod            string // HTTP method for requests
+	scanProxyFlagTarget            string // Target server for proxy requests
+	scanProxyFlagPath              string // Request path
+	scanProxyFlagProtocol          string // HTTP protocol version
+	scanProxyFlagPayload           string // Custom payload template
+	scanProxyFlagTimeout           int    // Connection timeout in seconds
+	scanProxyFlagOutput            string // Output file for successful results
 )
 
-// init initializes the proxy command and its flags.
-// This function is automatically called when the package is imported
-// and sets up the command configuration, flags, and validation rules.
+// init sets up the proxy command with flags and configuration.
 func init() {
 	// Add the proxy command to the root command
 	rootCmd.AddCommand(scanProxyCmd)
@@ -94,43 +65,17 @@ func init() {
 	scanProxyFlagMethod = strings.ToUpper(scanProxyFlagMethod)
 }
 
-// scanProxyRequest represents a single proxy scan request containing
-// all necessary parameters for testing a proxy server. This struct
-// encapsulates the proxy configuration and request details.
+// scanProxyRequest contains parameters for testing a proxy server.
 type scanProxyRequest struct {
-	// ProxyHost is the IP address or hostname of the proxy server
-	ProxyHost string
-
-	// ProxyPort is the port number of the proxy server
-	ProxyPort int
-
-	// Bug is the hostname to use in the Host header (for IP-based proxies)
-	Bug string
-
-	// Method is the HTTP method to use for the request
-	Method string
-
-	// Target is the target server to request through the proxy
-	Target string
-
-	// Payload is the complete HTTP request payload to send
-	Payload string
+	ProxyHost string // IP address or hostname of proxy server
+	ProxyPort int    // Port number of proxy server
+	Bug       string // Hostname for Host header (for IP-based proxies)
+	Method    string // HTTP method for the request
+	Target    string // Target server to request through proxy
+	Payload   string // Complete HTTP request payload
 }
 
-// scanProxy performs a proxy scan test on a single proxy server.
-//
-// This function establishes a connection to the proxy server and sends
-// a specially crafted HTTP request to test proxy functionality. It analyzes
-// the response to determine if the proxy is working correctly and reports
-// various response codes and headers.
-//
-// The function implements timeout handling, error recovery, and response
-// parsing to provide comprehensive proxy testing capabilities. It's particularly
-// effective for identifying misconfigurations and potential security issues.
-//
-// Parameters:
-//   - c: Queue scanner context for logging and result reporting
-//   - p: Scan parameters containing the proxy request configuration
+// scanProxy tests a proxy server by sending HTTP requests and analyzing responses.
 func scanProxy(c *queuescanner.Ctx, p *queuescanner.QueueScannerScanParams) {
 	req, ok := p.Data.(*scanProxyRequest)
 	if !ok {
@@ -238,24 +183,7 @@ func scanProxy(c *queuescanner.Ctx, p *queuescanner.QueueScannerScanParams) {
 	}
 }
 
-// getScanProxyPayloadDecoded generates the final payload string by replacing
-// template placeholders with actual values.
-//
-// This function takes the payload template and substitutes various placeholders
-// with their actual values, including HTTP method, path, protocol, and bug host.
-// It's used to generate the final HTTP request that will be sent through the proxy.
-//
-// Parameters:
-//   - bug: Optional bug hostname to substitute in the payload
-//
-// Returns:
-//   - string: The processed payload with all placeholders replaced
-//
-// Template placeholders:
-//   - [method]: HTTP method (GET, POST, etc.)
-//   - [path]: Request path
-//   - [protocol]: HTTP protocol version
-//   - [bug]: Bug hostname (if provided)
+// getScanProxyPayloadDecoded replaces template placeholders with actual values.
 func getScanProxyPayloadDecoded(bug ...string) string {
 	payload := scanProxyFlagPayload
 	payload = strings.ReplaceAll(payload, "[method]", scanProxyFlagMethod)
@@ -267,19 +195,7 @@ func getScanProxyPayloadDecoded(bug ...string) string {
 	return payload
 }
 
-// runScanProxy is the main execution function for the proxy scan command.
-//
-// This function orchestrates the proxy scanning process by collecting proxy
-// hosts from various sources (CIDR, single host, or file), configuring scan
-// parameters, and initiating the scanning process using the queue scanner.
-//
-// The function handles multiple input methods, generates appropriate bug
-// values for different proxy types, and provides feedback about the payload
-// being used for scanning.
-//
-// Parameters:
-//   - cmd: The Cobra command instance (unused but required by interface)
-//   - args: Command line arguments (unused but required by interface)
+// runScanProxy orchestrates the proxy scanning process from various sources.
 func runScanProxy(cmd *cobra.Command, args []string) {
 	proxyHostList := make(map[string]bool)
 

@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"context"
 	"crypto/tls"
 	"fmt"
 	"net"
@@ -14,10 +15,7 @@ import (
 	"github.com/ayanrajpoot10/bugscanx-go/pkg/queuescanner"
 )
 
-// directCmd represents the direct scanning command.
-// This command performs direct HTTP/HTTPS connections to target hosts
-// without using any proxy or intermediary. It's useful for basic web
-// service enumeration and connectivity testing.
+// directCmd performs direct HTTP/HTTPS connections to target hosts.
 var directCmd = &cobra.Command{
 	Use:     "direct",
 	Short:   "Scan using direct connection to targets.",
@@ -27,31 +25,16 @@ var directCmd = &cobra.Command{
 
 // Direct scan command flags
 var (
-	// scanDirectFlagFilename specifies the input file containing the list of domains to scan
-	scanDirectFlagFilename string
-
-	// scanDirectFlagHttps enables HTTPS mode (port 443) instead of HTTP (port 80)
-	scanDirectFlagHttps bool
-
-	// scanDirectFlagOutput specifies the output file to save successful scan results
-	scanDirectFlagOutput string
-
-	// scanDirectFlagHideLocation filters out responses with a specific Location header value
-	scanDirectFlagHideLocation string
-
-	// scanDirectFlagMethod specifies the HTTP method to use for requests (HEAD, GET, POST, etc.)
-	scanDirectFlagMethod string
-
-	// scanDirectFlagTimeoutConnect sets the TCP connection timeout in seconds
-	scanDirectFlagTimeoutConnect int
-
-	// scanDirectFlagTimeoutRequest sets the overall request timeout in seconds
-	scanDirectFlagTimeoutRequest int
+	scanDirectFlagFilename       string // Input file containing domains to scan
+	scanDirectFlagHttps          bool   // Use HTTPS (port 443) instead of HTTP (port 80)
+	scanDirectFlagOutput         string // Output file for successful results
+	scanDirectFlagHideLocation   string // Filter out responses with this Location header
+	scanDirectFlagMethod         string // HTTP method to use (HEAD, GET, POST, etc.)
+	scanDirectFlagTimeoutConnect int    // TCP connection timeout in seconds
+	scanDirectFlagTimeoutRequest int    // Overall request timeout in seconds
 )
 
-// init initializes the direct command and its flags.
-// This function is automatically called when the package is imported
-// and sets up the command configuration, flags, and validation rules.
+// init sets up the direct command with flags and validation.
 func init() {
 	// Add the direct command to the root command
 	rootCmd.AddCommand(directCmd)
@@ -69,31 +52,12 @@ func init() {
 	directCmd.MarkFlagRequired("filename")
 }
 
-// scanDirectRequest represents a single direct scan request containing
-// the target domain information. This struct is used to pass scan
-// parameters to the scanning worker goroutines.
+// scanDirectRequest contains target domain information for scanning.
 type scanDirectRequest struct {
-	// Domain is the target domain or hostname to scan
-	Domain string
+	Domain string // Target domain or hostname
 }
 
-// parseHTTPResponse parses a raw HTTP response string and extracts key information.
-//
-// This function parses HTTP response headers to extract status code, server information,
-// and location headers. It's designed to handle various HTTP response formats and
-// provides essential information for security scanning and web service enumeration.
-//
-// Parameters:
-//   - response: Raw HTTP response string including status line and headers
-//
-// Returns:
-//   - statusCode: HTTP status code (200, 404, 301, etc.)
-//   - server: Server header value (e.g., "nginx/1.18.0", "Apache/2.4.41")
-//   - location: Location header value for redirects
-//
-// Example:
-//
-//	status, server, location := parseHTTPResponse("HTTP/1.1 200 OK\r\nServer: nginx\r\n...")
+// parseHTTPResponse extracts status code, server, and location from HTTP response.
 func parseHTTPResponse(response string) (statusCode int, server string, location string) {
 	lines := strings.Split(response, "\n")
 
@@ -124,19 +88,7 @@ func parseHTTPResponse(response string) (statusCode int, server string, location
 	return statusCode, server, location
 }
 
-// scanDirect performs a direct HTTP/HTTPS scan on a single target domain.
-//
-// This function implements the core scanning logic for direct connections.
-// It establishes a connection to the target, sends an HTTP request, reads
-// the response, and extracts relevant information for security assessment.
-//
-// The function handles various timeout scenarios, connection failures, and
-// response parsing. It filters results based on configured criteria and
-// reports successful scans to the queue scanner context.
-//
-// Parameters:
-//   - c: Queue scanner context for logging and result reporting
-//   - p: Scan parameters containing the target domain information
+// scanDirect performs a direct HTTP/HTTPS scan on a target domain.
 func scanDirect(c *queuescanner.Ctx, p *queuescanner.QueueScannerScanParams) {
 	req := p.Data.(*scanDirectRequest)
 
@@ -146,85 +98,91 @@ func scanDirect(c *queuescanner.Ctx, p *queuescanner.QueueScannerScanParams) {
 		port = "443"
 	}
 
-	address := fmt.Sprintf("%s:%s", req.Domain, port)
+	// Resolve both IPv4 and IPv6 addresses
+	ips, err := net.DefaultResolver.LookupIP(context.Background(), "ip", req.Domain)
+	if err != nil || len(ips) == 0 {
+		return // DNS resolution failed for both IPv4 and IPv6
+	}
 
-	// Establish connection with timeout (IPv4 only)
-	var conn net.Conn
-	var err error
+	// Try each resolved IP until one succeeds
 	timeout := time.Duration(scanDirectFlagTimeoutConnect) * time.Second
-
-	if scanDirectFlagHttps {
-		conn, err = tls.DialWithDialer(&net.Dialer{Timeout: timeout}, "tcp4", address, &tls.Config{
-			InsecureSkipVerify: true,
-		})
-	} else {
-		conn, err = net.DialTimeout("tcp4", address, timeout)
-	}
-
-	if err != nil {
-		return // Connection failed, skip this target
-	}
-	defer conn.Close()
-
-	// Set overall timeout for the request
-	conn.SetDeadline(time.Now().Add(time.Duration(scanDirectFlagTimeoutRequest) * time.Second))
-
 	method := scanDirectFlagMethod
 	if method == "" {
 		method = "HEAD"
 	}
 
-	// Craft HTTP request with proper headers
-	httpRequest := fmt.Sprintf("%s / HTTP/1.1\r\nHost: %s\r\nUser-Agent: bugscanx-go/1.0\r\nConnection: close\r\n\r\n", method, req.Domain)
+	for _, resolvedIP := range ips {
+		ip := resolvedIP.String()
+		var address string
+		var network string
 
-	// Send HTTP request
-	_, err = conn.Write([]byte(httpRequest))
-	if err != nil {
-		return // Failed to send request
-	}
-
-	// Read response with buffer
-	buffer := make([]byte, 4096)
-	n, err := conn.Read(buffer)
-	if err != nil {
-		return // Failed to read response
-	}
-
-	// Parse HTTP response
-	response := string(buffer[:n])
-	statusCode, hServer, hLocation := parseHTTPResponse(response)
-
-	// Filter results based on Location header if configured
-	if scanDirectFlagHideLocation != "" && hLocation == scanDirectFlagHideLocation {
-		return
-	}
-
-	// Extract IP address from connection
-	ip := "unknown"
-	if remoteAddr := conn.RemoteAddr(); remoteAddr != nil {
-		if tcpAddr, ok := remoteAddr.(*net.TCPAddr); ok {
-			ip = tcpAddr.IP.String()
+		// Handle IPv6 addresses by wrapping them in brackets
+		if resolvedIP.To4() == nil {
+			// IPv6 address
+			address = fmt.Sprintf("[%s]:%s", ip, port)
+			network = "tcp6"
+		} else {
+			// IPv4 address
+			address = fmt.Sprintf("%s:%s", ip, port)
+			network = "tcp4"
 		}
-	}
 
-	// Format and report successful scan result
-	formatted := fmt.Sprintf("%-15s  %-3d   %-16s    %s", ip, statusCode, hServer, req.Domain)
-	c.ScanSuccess(formatted)
-	c.Log(formatted)
+		// Establish connection with timeout
+		var conn net.Conn
+
+		if scanDirectFlagHttps {
+			conn, err = tls.DialWithDialer(&net.Dialer{Timeout: timeout}, network, address, &tls.Config{
+				InsecureSkipVerify: true,
+				ServerName:         req.Domain, // SNI
+			})
+		} else {
+			conn, err = net.DialTimeout(network, address, timeout)
+		}
+		if err != nil {
+			continue // Connection failed, try next IP
+		}
+
+		// Set overall timeout for the request
+		conn.SetDeadline(time.Now().Add(time.Duration(scanDirectFlagTimeoutRequest) * time.Second))
+
+		// Craft HTTP request with proper headers
+		httpRequest := fmt.Sprintf("%s / HTTP/1.1\r\nHost: %s\r\nUser-Agent: bugscanx-go/1.0\r\nConnection: close\r\n\r\n", method, req.Domain)
+
+		// Send HTTP request
+		_, err = conn.Write([]byte(httpRequest))
+		if err != nil {
+			conn.Close()
+			continue // Failed to send request, try next IP
+		}
+
+		// Read response with buffer
+		buffer := make([]byte, 4096)
+		n, err := conn.Read(buffer)
+		if err != nil {
+			conn.Close()
+			continue // Failed to read response, try next IP
+		}
+
+		conn.Close()
+
+		// Parse HTTP response
+		response := string(buffer[:n])
+		statusCode, hServer, hLocation := parseHTTPResponse(response)
+
+		// Filter results based on Location header if configured
+		if scanDirectFlagHideLocation != "" && hLocation == scanDirectFlagHideLocation {
+			continue // Found matching location to hide, don't try other IPs
+		}
+
+		// Format and report successful scan result
+		formatted := fmt.Sprintf("%-15s  %-3d   %-16s    %s", ip, statusCode, hServer, req.Domain)
+		c.ScanSuccess(formatted)
+		c.Log(formatted)
+		return // Success! Don't try remaining IPs
+	}
 }
 
-// scanDirectRun is the main execution function for the direct scan command.
-//
-// This function orchestrates the direct scanning process by reading the input file,
-// setting up the queue scanner with the specified number of threads, and
-// initiating the scanning process for all target domains.
-//
-// The function handles file I/O, error reporting, result formatting, and
-// progress tracking throughout the scanning process.
-//
-// Parameters:
-//   - cmd: The Cobra command instance (unused but required by interface)
-//   - args: Command line arguments (unused but required by interface)
+// scanDirectRun orchestrates the direct scanning process.
 func scanDirectRun(cmd *cobra.Command, args []string) {
 	// Read target domains from input file
 	hosts, err := ReadLinesFromFile(scanDirectFlagFilename)
