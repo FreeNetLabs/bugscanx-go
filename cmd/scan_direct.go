@@ -99,81 +99,125 @@ func scanDirect(c *queuescanner.Ctx, data any) {
 		return // DNS resolution failed for both IPv4 and IPv6
 	}
 
-	// Try each resolved IP until one succeeds
+	// Try all resolved IPs concurrently and cancel others when one succeeds
 	timeout := time.Duration(scanDirectFlagTimeoutConnect) * time.Second
 	method := scanDirectFlagMethod
 	if method == "" {
 		method = "HEAD"
 	}
 
+	// Create context with cancellation for concurrent IP scanning
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	// Channel to receive successful scan results
+	resultChan := make(chan string, 1)
+
+	// Launch concurrent goroutines for each IP
 	for _, resolvedIP := range ips {
-		ip := resolvedIP.String()
-		var address string
-		var network string
+		go func(ip net.IP) {
+			select {
+			case <-ctx.Done():
+				return // Context cancelled, another IP succeeded
+			default:
+			}
 
-		// Handle IPv6 addresses by wrapping them in brackets
-		if resolvedIP.To4() == nil {
-			// IPv6 address
-			address = fmt.Sprintf("[%s]:%s", ip, port)
-			network = "tcp6"
-		} else {
-			// IPv4 address
-			address = fmt.Sprintf("%s:%s", ip, port)
-			network = "tcp4"
-		}
+			ipStr := ip.String()
+			var address string
+			var network string
 
-		// Establish connection with timeout
-		var conn net.Conn
+			// Handle IPv6 addresses by wrapping them in brackets
+			if ip.To4() == nil {
+				// IPv6 address
+				address = fmt.Sprintf("[%s]:%s", ipStr, port)
+				network = "tcp6"
+			} else {
+				// IPv4 address
+				address = fmt.Sprintf("%s:%s", ipStr, port)
+				network = "tcp4"
+			}
 
-		if scanDirectFlagHttps {
-			conn, err = tls.DialWithDialer(&net.Dialer{Timeout: timeout}, network, address, &tls.Config{
-				InsecureSkipVerify: true,
-				ServerName:         domain, // SNI
-			})
-		} else {
-			conn, err = net.DialTimeout(network, address, timeout)
-		}
-		if err != nil {
-			continue // Connection failed, try next IP
-		}
+			// Create a dialer with timeout and context
+			dialer := &net.Dialer{
+				Timeout: timeout,
+			}
 
-		// Set overall timeout for the request
-		conn.SetDeadline(time.Now().Add(time.Duration(scanDirectFlagTimeoutRequest) * time.Second))
+			// Establish connection with timeout and context
+			var conn net.Conn
+			var err error
 
-		// Craft HTTP request with proper headers
-		httpRequest := fmt.Sprintf("%s / HTTP/1.1\r\nHost: %s\r\nUser-Agent: bugscanx-go/1.0\r\nConnection: close\r\n\r\n", method, domain)
+			if scanDirectFlagHttps {
+				conn, err = tls.DialWithDialer(dialer, network, address, &tls.Config{
+					InsecureSkipVerify: true,
+					ServerName:         domain, // SNI
+				})
+			} else {
+				conn, err = dialer.DialContext(ctx, network, address)
+			}
+			if err != nil {
+				return // Connection failed
+			}
+			defer conn.Close()
 
-		// Send HTTP request
-		_, err = conn.Write([]byte(httpRequest))
-		if err != nil {
-			conn.Close()
-			continue // Failed to send request, try next IP
-		}
+			// Check if context was cancelled during connection
+			select {
+			case <-ctx.Done():
+				return
+			default:
+			}
 
-		// Read response with buffer
-		buffer := make([]byte, 4096)
-		n, err := conn.Read(buffer)
-		if err != nil {
-			conn.Close()
-			continue // Failed to read response, try next IP
-		}
+			// Set overall timeout for the request
+			conn.SetDeadline(time.Now().Add(time.Duration(scanDirectFlagTimeoutRequest) * time.Second))
 
-		conn.Close()
+			// Craft HTTP request with proper headers
+			httpRequest := fmt.Sprintf("%s / HTTP/1.1\r\nHost: %s\r\nUser-Agent: bugscanx-go/1.0\r\nConnection: close\r\n\r\n", method, domain)
 
-		// Parse HTTP response
-		response := string(buffer[:n])
-		statusCode, hServer, hLocation := parseHTTPResponse(response)
+			// Send HTTP request
+			_, err = conn.Write([]byte(httpRequest))
+			if err != nil {
+				return // Failed to send request
+			}
 
-		// Filter results based on Location header if configured
-		if scanDirectFlagHideLocation != "" && hLocation == scanDirectFlagHideLocation {
-			continue // Found matching location to hide, don't try other IPs
-		}
+			// Read response with buffer
+			buffer := make([]byte, 4096)
+			n, err := conn.Read(buffer)
+			if err != nil {
+				return // Failed to read response
+			}
 
-		// Format and report successful scan result
-		formatted := fmt.Sprintf("%-15s  %-3d   %-16s    %s", ip, statusCode, hServer, domain)
+			// Parse HTTP response
+			response := string(buffer[:n])
+			statusCode, hServer, hLocation := parseHTTPResponse(response)
+
+			// Filter results based on Location header if configured
+			if scanDirectFlagHideLocation != "" && hLocation == scanDirectFlagHideLocation {
+				return // Found matching location to hide
+			}
+
+			// Format successful scan result
+			formatted := fmt.Sprintf("%-15s  %-3d   %-16s    %s", ipStr, statusCode, hServer, domain)
+
+			// Try to send result, but don't block if channel is full (another goroutine succeeded first)
+			select {
+			case resultChan <- formatted:
+				// Successfully sent result, cancel other goroutines
+				cancel()
+			case <-ctx.Done():
+				// Context was cancelled, another goroutine succeeded first
+				return
+			}
+		}(resolvedIP)
+	}
+
+	// Wait for the first successful result or timeout
+	select {
+	case formatted := <-resultChan:
 		c.ScanSuccess(formatted)
 		c.Log(formatted)
-		return // Success! Don't try remaining IPs
+		return // Success!
+	case <-time.After(time.Duration(scanDirectFlagTimeoutRequest) * time.Second):
+		cancel() // Cancel all goroutines on timeout
+		return   // No successful connection within timeout
 	}
 }
 
