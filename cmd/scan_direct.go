@@ -52,11 +52,6 @@ func init() {
 	directCmd.MarkFlagRequired("filename")
 }
 
-// scanDirectRequest contains target domain information for scanning.
-type scanDirectRequest struct {
-	Domain string // Target domain or hostname
-}
-
 // parseHTTPResponse extracts status code, server, and location from HTTP response.
 func parseHTTPResponse(response string) (statusCode int, server string, location string) {
 	lines := strings.Split(response, "\n")
@@ -89,8 +84,8 @@ func parseHTTPResponse(response string) (statusCode int, server string, location
 }
 
 // scanDirect performs a direct HTTP/HTTPS scan on a target domain.
-func scanDirect(c *queuescanner.Ctx, p *queuescanner.QueueScannerScanParams) {
-	req := p.Data.(*scanDirectRequest)
+func scanDirect(c *queuescanner.Ctx, data any) {
+	domain := data.(string)
 
 	// Determine port based on protocol
 	port := "80"
@@ -99,7 +94,7 @@ func scanDirect(c *queuescanner.Ctx, p *queuescanner.QueueScannerScanParams) {
 	}
 
 	// Resolve both IPv4 and IPv6 addresses
-	ips, err := net.DefaultResolver.LookupIP(context.Background(), "ip", req.Domain)
+	ips, err := net.DefaultResolver.LookupIP(context.Background(), "ip", domain)
 	if err != nil || len(ips) == 0 {
 		return // DNS resolution failed for both IPv4 and IPv6
 	}
@@ -133,7 +128,7 @@ func scanDirect(c *queuescanner.Ctx, p *queuescanner.QueueScannerScanParams) {
 		if scanDirectFlagHttps {
 			conn, err = tls.DialWithDialer(&net.Dialer{Timeout: timeout}, network, address, &tls.Config{
 				InsecureSkipVerify: true,
-				ServerName:         req.Domain, // SNI
+				ServerName:         domain, // SNI
 			})
 		} else {
 			conn, err = net.DialTimeout(network, address, timeout)
@@ -146,7 +141,7 @@ func scanDirect(c *queuescanner.Ctx, p *queuescanner.QueueScannerScanParams) {
 		conn.SetDeadline(time.Now().Add(time.Duration(scanDirectFlagTimeoutRequest) * time.Second))
 
 		// Craft HTTP request with proper headers
-		httpRequest := fmt.Sprintf("%s / HTTP/1.1\r\nHost: %s\r\nUser-Agent: bugscanx-go/1.0\r\nConnection: close\r\n\r\n", method, req.Domain)
+		httpRequest := fmt.Sprintf("%s / HTTP/1.1\r\nHost: %s\r\nUser-Agent: bugscanx-go/1.0\r\nConnection: close\r\n\r\n", method, domain)
 
 		// Send HTTP request
 		_, err = conn.Write([]byte(httpRequest))
@@ -175,7 +170,7 @@ func scanDirect(c *queuescanner.Ctx, p *queuescanner.QueueScannerScanParams) {
 		}
 
 		// Format and report successful scan result
-		formatted := fmt.Sprintf("%-15s  %-3d   %-16s    %s", ip, statusCode, hServer, req.Domain)
+		formatted := fmt.Sprintf("%-15s  %-3d   %-16s    %s", ip, statusCode, hServer, domain)
 		c.ScanSuccess(formatted)
 		c.Log(formatted)
 		return // Success! Don't try remaining IPs
@@ -200,12 +195,7 @@ func scanDirectRun(cmd *cobra.Command, args []string) {
 
 	// Add all domains to the scan queue
 	for _, domain := range hosts {
-		queueScanner.Add(&queuescanner.QueueScannerScanParams{
-			Name: domain,
-			Data: &scanDirectRequest{
-				Domain: domain,
-			},
-		})
+		queueScanner.Add(domain)
 	}
 
 	// Configure output file if specified

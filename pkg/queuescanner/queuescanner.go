@@ -4,7 +4,6 @@ package queuescanner
 import (
 	"fmt"
 	"os"
-	"strings"
 	"sync"
 	"sync/atomic"
 
@@ -13,11 +12,11 @@ import (
 
 // Ctx provides execution context for queue scanner operations.
 type Ctx struct {
-	ScanComplete     int64                     // Total completed scans (atomic)
-	ScanSuccessCount int64                     // Successful scans (atomic)
-	dataList         []*QueueScannerScanParams // Scan parameters to process
-	mx               sync.Mutex                // Thread-safe access to shared resources
-	OutputFile       string                    // Output file path for results
+	ScanComplete     int64      // Total completed scans (atomic)
+	ScanSuccessCount int64      // Successful scans (atomic)
+	dataList         []any      // Data items to process
+	mx               sync.Mutex // Thread-safe access to shared resources
+	OutputFile       string     // Output file path for results
 }
 
 // Log prints a message with proper line clearing.
@@ -31,7 +30,7 @@ func (c *Ctx) Logf(f string, a ...any) {
 }
 
 // LogReplace displays real-time progress updates without newlines.
-func (c *Ctx) LogReplace(a ...string) {
+func (c *Ctx) LogReplace(currentItem any) {
 	scanSuccess := atomic.LoadInt64(&c.ScanSuccessCount)
 	scanComplete := atomic.LoadInt64(&c.ScanComplete)
 	scanCompletePercentage := float64(scanComplete) / float64(len(c.dataList)) * 100
@@ -42,7 +41,7 @@ func (c *Ctx) LogReplace(a ...string) {
 		scanComplete,
 		len(c.dataList),
 		scanSuccess,
-		strings.Join(a, " "),
+		fmt.Sprintf("%v", currentItem),
 	)
 
 	// Handle terminal width to prevent wrapping
@@ -79,25 +78,16 @@ func (c *Ctx) ScanSuccess(a any) {
 	atomic.AddInt64(&c.ScanSuccessCount, 1)
 }
 
-// QueueScannerScanParams contains parameters for a single scan operation.
-type QueueScannerScanParams struct {
-	Name string // Human-readable identifier for progress display
-	Data any    // Payload data for the scan function
-}
-
 // QueueScannerScanFunc defines the signature for scan worker functions.
-type QueueScannerScanFunc func(c *Ctx, a *QueueScannerScanParams)
-
-// QueueScannerDoneFunc defines the signature for completion callbacks.
-type QueueScannerDoneFunc func(c *Ctx)
+type QueueScannerScanFunc func(c *Ctx, data any)
 
 // QueueScanner manages concurrent task execution with progress tracking.
 type QueueScanner struct {
-	threads  int                          // Number of worker goroutines
-	scanFunc QueueScannerScanFunc         // Function called for each scan task
-	queue    chan *QueueScannerScanParams // Buffered channel for pending tasks
-	wg       sync.WaitGroup               // Coordinates worker lifecycle
-	ctx      *Ctx                         // Shared execution context
+	threads  int                  // Number of worker goroutines
+	scanFunc QueueScannerScanFunc // Function called for each scan task
+	queue    chan any             // Buffered channel for pending tasks
+	wg       sync.WaitGroup       // Coordinates worker lifecycle
+	ctx      *Ctx                 // Shared execution context
 }
 
 // NewQueueScanner creates a new scanner with the specified thread count and scan function.
@@ -105,7 +95,7 @@ func NewQueueScanner(threads int, scanFunc QueueScannerScanFunc) *QueueScanner {
 	t := &QueueScanner{
 		threads:  threads,
 		scanFunc: scanFunc,
-		queue:    make(chan *QueueScannerScanParams, threads*2),
+		queue:    make(chan any, threads*2),
 		ctx:      &Ctx{},
 	}
 
@@ -124,22 +114,22 @@ func (s *QueueScanner) run() {
 
 	for {
 		// Receive next task from queue
-		a, ok := <-s.queue
+		data, ok := <-s.queue
 		if !ok {
 			break // Queue closed, exit worker
 		}
 
 		// Execute scan function
-		s.scanFunc(s.ctx, a)
+		s.scanFunc(s.ctx, data)
 
 		// Update progress counters and display
 		atomic.AddInt64(&s.ctx.ScanComplete, 1)
-		s.ctx.LogReplace(a.Name)
+		s.ctx.LogReplace(data)
 	}
 }
 
 // Add enqueues scan tasks for processing.
-func (s *QueueScanner) Add(dataList ...*QueueScannerScanParams) {
+func (s *QueueScanner) Add(dataList ...any) {
 	s.ctx.dataList = append(s.ctx.dataList, dataList...)
 }
 

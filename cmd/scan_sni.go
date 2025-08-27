@@ -46,8 +46,8 @@ func init() {
 }
 
 // scanSNI performs SNI scanning on a domain by establishing TLS connection.
-func scanSNI(c *queuescanner.Ctx, p *queuescanner.QueueScannerScanParams) {
-	domain := p.Data.(string)
+func scanSNI(c *queuescanner.Ctx, data any) {
+	domain := data.(string)
 
 	var conn net.Conn
 	var err error
@@ -64,7 +64,7 @@ func scanSNI(c *queuescanner.Ctx, p *queuescanner.QueueScannerScanParams) {
 		conn, err = net.DialTimeout("tcp", domain+":443", 3*time.Second)
 		if err != nil {
 			if e, ok := err.(net.Error); ok && e.Timeout() {
-				c.LogReplace(p.Name, "-", "Dial Timeout")
+				c.LogReplacef("%s - Dial Timeout", domain)
 				continue // Retry on timeout
 			}
 			return // Non-timeout error, give up
@@ -134,10 +134,7 @@ func runScanSNI(cmd *cobra.Command, args []string) {
 
 	// Add all domains to the scan queue
 	for _, domain := range domains {
-		queueScanner.Add(&queuescanner.QueueScannerScanParams{
-			Name: domain,
-			Data: domain,
-		})
+		queueScanner.Add(domain)
 	}
 
 	// Configure output file if specified

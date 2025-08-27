@@ -65,28 +65,31 @@ func init() {
 	scanProxyFlagMethod = strings.ToUpper(scanProxyFlagMethod)
 }
 
-// scanProxyRequest contains parameters for testing a proxy server.
-type scanProxyRequest struct {
-	ProxyHost string // IP address or hostname of proxy server
-	ProxyPort int    // Port number of proxy server
-	Bug       string // Hostname for Host header (for IP-based proxies)
-	Method    string // HTTP method for the request
-	Target    string // Target server to request through proxy
-	Payload   string // Complete HTTP request payload
-}
-
 // scanProxy tests a proxy server by sending HTTP requests and analyzing responses.
-func scanProxy(c *queuescanner.Ctx, p *queuescanner.QueueScannerScanParams) {
-	req, ok := p.Data.(*scanProxyRequest)
-	if !ok {
-		return // Invalid request data
+func scanProxy(c *queuescanner.Ctx, data any) {
+	proxyHost := data.(string)
+
+	// Calculate bug value for this proxy host
+	regexpIsIP := regexp.MustCompile(`\d+$`)
+	bug := scanProxyFlagBug
+	if bug == "" {
+		if regexpIsIP.MatchString(proxyHost) {
+			bug = scanProxyFlagTarget // Use target for IP proxies
+		} else {
+			bug = proxyHost // Use proxy hostname for domain proxies
+		}
+	}
+
+	// Special case for root path
+	if scanProxyFlagPath == "/" {
+		bug = scanProxyFlagTarget
 	}
 
 	var conn net.Conn
 	var err error
 	dnsErr := new(net.DNSError)
 
-	proxyHostPort := fmt.Sprintf("%s:%d", req.ProxyHost, req.ProxyPort)
+	proxyHostPort := net.JoinHostPort(proxyHost, fmt.Sprintf("%d", scanProxyFlagProxyPort))
 	dialCount := 0
 
 	// Retry logic for connection establishment
@@ -127,9 +130,9 @@ func scanProxy(c *queuescanner.Ctx, p *queuescanner.QueueScannerScanParams) {
 
 	// Handle proxy request and response in goroutine
 	go func() {
-		// Prepare and send payload
-		payload := req.Payload
-		payload = strings.ReplaceAll(payload, "[host]", req.Target)
+		// Prepare and send payload using flag values
+		payload := getScanProxyPayloadDecoded(bug)
+		payload = strings.ReplaceAll(payload, "[host]", scanProxyFlagTarget)
 		payload = strings.ReplaceAll(payload, "[crlf]", "\r\n")
 
 		_, err = conn.Write([]byte(payload))
@@ -231,38 +234,11 @@ func runScanProxy(cmd *cobra.Command, args []string) {
 
 	// Initialize queue scanner
 	queueScanner := queuescanner.NewQueueScanner(globalFlagThreads, scanProxy)
-	regexpIsIP := regexp.MustCompile(`\d+$`)
 
 	// Process each proxy host and add to scan queue
 	for proxyHost := range proxyHostList {
-		bug := scanProxyFlagBug
-
-		// Determine appropriate bug value
-		if bug == "" {
-			if regexpIsIP.MatchString(proxyHost) {
-				bug = scanProxyFlagTarget // Use target for IP proxies
-			} else {
-				bug = proxyHost // Use proxy hostname for domain proxies
-			}
-		}
-
-		// Special case for root path
-		if scanProxyFlagPath == "/" {
-			bug = scanProxyFlagTarget
-		}
-
-		// Add scan job to queue
-		queueScanner.Add(&queuescanner.QueueScannerScanParams{
-			Name: fmt.Sprintf("%s:%d - %s", proxyHost, scanProxyFlagProxyPort, scanProxyFlagTarget),
-			Data: &scanProxyRequest{
-				ProxyHost: proxyHost,
-				ProxyPort: scanProxyFlagProxyPort,
-				Bug:       bug,
-				Method:    scanProxyFlagMethod,
-				Target:    scanProxyFlagTarget,
-				Payload:   getScanProxyPayloadDecoded(bug),
-			},
-		})
+		// Add just the proxy host to the queue
+		queueScanner.Add(proxyHost)
 	}
 
 	// Display payload being used

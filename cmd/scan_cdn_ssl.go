@@ -67,27 +67,30 @@ func init() {
 	cdnSslFlagMethod = strings.ToUpper(cdnSslFlagMethod)
 }
 
-// scanCdnSslRequest contains parameters for testing a CDN SSL proxy server.
-type scanCdnSslRequest struct {
-	ProxyHost string // IP address or hostname of CDN SSL proxy
-	ProxyPort int    // Port number (typically 443)
-	Bug       string // Hostname for SNI and Host header
-	Method    string // HTTP method for the request
-	Target    string // Target domain to request through proxy
-	Payload   string // Complete HTTP request payload over SSL
-}
-
 // scanCdnSsl tests CDN SSL proxy by establishing TLS connection and sending HTTP requests.
-func scanCdnSsl(c *queuescanner.Ctx, p *queuescanner.QueueScannerScanParams) {
-	req, ok := p.Data.(*scanCdnSslRequest)
-	if !ok {
-		return // Invalid request data
+func scanCdnSsl(c *queuescanner.Ctx, data any) {
+	proxyHost := data.(string)
+
+	// Calculate bug value for this proxy host
+	regexpIsIP := regexp.MustCompile(`\d+$`)
+	bug := cdnSslFlagBug
+	if bug == "" {
+		if regexpIsIP.MatchString(proxyHost) {
+			bug = cdnSslFlagTarget // Use target for IP-based CDN proxies
+		} else {
+			bug = proxyHost // Use proxy hostname for domain-based CDN proxies
+		}
+	}
+
+	// Special case for root path
+	if cdnSslFlagPath == "/" {
+		bug = cdnSslFlagTarget
 	}
 
 	var conn net.Conn
 	var err error
 
-	proxyHostPort := fmt.Sprintf("%s:%d", req.ProxyHost, req.ProxyPort)
+	proxyHostPort := net.JoinHostPort(proxyHost, fmt.Sprintf("%d", cdnSslFlagProxyPort))
 	dialCount := 0
 
 	// Retry logic for connection establishment
@@ -102,7 +105,7 @@ func scanCdnSsl(c *queuescanner.Ctx, p *queuescanner.QueueScannerScanParams) {
 		if err != nil {
 			// Handle specific error types
 			if e, ok := err.(net.Error); ok && e.Timeout() {
-				c.LogReplace(p.Name, "-", "Dial Timeout")
+				c.LogReplacef("%s:%d - Dial Timeout", proxyHost, cdnSslFlagProxyPort)
 				continue // Retry on timeout
 			}
 			if opError, ok := err.(*net.OpError); ok {
@@ -120,8 +123,8 @@ func scanCdnSsl(c *queuescanner.Ctx, p *queuescanner.QueueScannerScanParams) {
 
 	// Establish TLS connection with SNI
 	tlsConn := tls.Client(conn, &tls.Config{
-		ServerName:         req.Bug, // Use bug as SNI hostname
-		InsecureSkipVerify: true,    // Skip certificate verification
+		ServerName:         bug,  // Use bug as SNI hostname
+		InsecureSkipVerify: true, // Skip certificate verification
 	})
 
 	// Perform TLS handshake with timeout
@@ -141,9 +144,9 @@ func scanCdnSsl(c *queuescanner.Ctx, p *queuescanner.QueueScannerScanParams) {
 
 	// Handle CDN SSL request and response in goroutine
 	go func() {
-		// Prepare and send payload over TLS connection
-		payload := req.Payload
-		payload = strings.ReplaceAll(payload, "[host]", req.Target)
+		// Prepare and send payload over TLS connection using flag values
+		payload := getScanCdnSslPayloadDecoded(bug)
+		payload = strings.ReplaceAll(payload, "[host]", cdnSslFlagTarget)
 		payload = strings.ReplaceAll(payload, "[crlf]", "\r\n")
 
 		_, err = tlsConn.Write([]byte(payload))
@@ -241,38 +244,11 @@ func runScanCdnSsl(cmd *cobra.Command, args []string) {
 
 	// Initialize queue scanner for CDN SSL scanning
 	queueScanner := queuescanner.NewQueueScanner(globalFlagThreads, scanCdnSsl)
-	regexpIsIP := regexp.MustCompile(`\d+$`)
 
 	// Process each CDN proxy host and add to scan queue
 	for proxyHost := range proxyHostList {
-		bug := cdnSslFlagBug
-
-		// Determine appropriate bug value for SNI
-		if bug == "" {
-			if regexpIsIP.MatchString(proxyHost) {
-				bug = cdnSslFlagTarget // Use target for IP-based CDN proxies
-			} else {
-				bug = proxyHost // Use proxy hostname for domain-based CDN proxies
-			}
-		}
-
-		// Special case for root path
-		if cdnSslFlagPath == "/" {
-			bug = cdnSslFlagTarget
-		}
-
-		// Add CDN SSL scan job to queue
-		queueScanner.Add(&queuescanner.QueueScannerScanParams{
-			Name: fmt.Sprintf("%s:%d - %s", proxyHost, cdnSslFlagProxyPort, cdnSslFlagTarget),
-			Data: &scanCdnSslRequest{
-				ProxyHost: proxyHost,
-				ProxyPort: cdnSslFlagProxyPort,
-				Bug:       bug,
-				Method:    cdnSslFlagMethod,
-				Target:    cdnSslFlagTarget,
-				Payload:   getScanCdnSslPayloadDecoded(bug),
-			},
-		})
+		// Add just the proxy host to the queue
+		queueScanner.Add(proxyHost)
 	}
 
 	// Display SSL payload being used
