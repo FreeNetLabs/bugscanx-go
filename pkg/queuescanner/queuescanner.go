@@ -21,6 +21,44 @@ type Ctx struct {
 	startTime        int64      // Unix timestamp in nanoseconds when scan started
 }
 
+// QueueScannerScanFunc defines the signature for scan worker functions.
+type QueueScannerScanFunc func(c *Ctx, data any)
+
+// QueueScanner manages concurrent task execution with progress tracking.
+type QueueScanner struct {
+	threads  int                  // Number of worker goroutines
+	scanFunc QueueScannerScanFunc // Function called for each scan task
+	queue    chan string          // Buffered channel for pending tasks
+	wg       sync.WaitGroup       // Coordinates worker lifecycle
+	ctx      *Ctx                 // Shared execution context
+}
+
+// nowNano returns current Unix timestamp in nanoseconds.
+func nowNano() int64 {
+	return time.Now().UnixNano()
+}
+
+// formatSeconds formats seconds as H:MM:SS or M:SS.
+func formatSeconds(sec int) string {
+	h := sec / 3600
+	m := (sec % 3600) / 60
+	s := sec % 60
+	if h > 0 {
+		return fmt.Sprintf("%d:%02d:%02d", h, m, s)
+	}
+	return fmt.Sprintf("%d:%02d", m, s)
+}
+
+// hideCursor hides the terminal cursor for cleaner progress display.
+func hideCursor() {
+	fmt.Print("\033[?25l")
+}
+
+// showCursor restores the terminal cursor.
+func showCursor() {
+	fmt.Print("\033[?25h")
+}
+
 // Log prints a message with proper line clearing.
 func (c *Ctx) Log(a ...any) {
 	fmt.Printf("\r\033[2K%s\n", fmt.Sprint(a...))
@@ -88,18 +126,6 @@ func (c *Ctx) ScanSuccess(a any) {
 	atomic.AddInt64(&c.ScanSuccessCount, 1)
 }
 
-// QueueScannerScanFunc defines the signature for scan worker functions.
-type QueueScannerScanFunc func(c *Ctx, data any)
-
-// QueueScanner manages concurrent task execution with progress tracking.
-type QueueScanner struct {
-	threads  int                  // Number of worker goroutines
-	scanFunc QueueScannerScanFunc // Function called for each scan task
-	queue    chan string          // Buffered channel for pending tasks
-	wg       sync.WaitGroup       // Coordinates worker lifecycle
-	ctx      *Ctx                 // Shared execution context
-}
-
 // NewQueueScanner creates a new scanner with the specified thread count and scan function.
 func NewQueueScanner(threads int, scanFunc QueueScannerScanFunc) *QueueScanner {
 	t := &QueueScanner{
@@ -115,6 +141,32 @@ func NewQueueScanner(threads int, scanFunc QueueScannerScanFunc) *QueueScanner {
 	}
 
 	return t
+}
+
+// SetOutputFile configures where successful results are saved.
+func (s *QueueScanner) SetOutputFile(filename string) {
+	s.ctx.OutputFile = filename
+}
+
+// Add enqueues scan tasks for processing.
+func (s *QueueScanner) Add(dataList []string) {
+	s.ctx.dataList = dataList
+}
+
+// Start begins scanning and blocks until all tasks complete.
+func (s *QueueScanner) Start() {
+	s.ctx.startTime = nowNano()
+	hideCursor()
+	defer showCursor()
+
+	// Feed all tasks to the queue
+	for _, data := range s.ctx.dataList {
+		s.queue <- data
+	}
+	close(s.queue)
+
+	// Wait for all workers to complete
+	s.wg.Wait()
 }
 
 // run implements the worker goroutine logic for processing scan tasks.
@@ -136,56 +188,4 @@ func (s *QueueScanner) run() {
 		atomic.AddInt64(&s.ctx.ScanComplete, 1)
 		s.ctx.LogReplace(data)
 	}
-}
-
-// Add enqueues scan tasks for processing.
-func (s *QueueScanner) Add(dataList []string) {
-	s.ctx.dataList = dataList
-}
-
-// nowNano returns current Unix timestamp in nanoseconds.
-func nowNano() int64 {
-	return time.Now().UnixNano()
-}
-
-// formatSeconds formats seconds as H:MM:SS or M:SS.
-func formatSeconds(sec int) string {
-	h := sec / 3600
-	m := (sec % 3600) / 60
-	s := sec % 60
-	if h > 0 {
-		return fmt.Sprintf("%d:%02d:%02d", h, m, s)
-	}
-	return fmt.Sprintf("%d:%02d", m, s)
-}
-
-// Start begins scanning and blocks until all tasks complete.
-func (s *QueueScanner) Start() {
-	s.ctx.startTime = nowNano()
-	hideCursor()
-	defer showCursor()
-
-	// Feed all tasks to the queue
-	for _, data := range s.ctx.dataList {
-		s.queue <- data
-	}
-	close(s.queue)
-
-	// Wait for all workers to complete
-	s.wg.Wait()
-}
-
-// hideCursor hides the terminal cursor for cleaner progress display.
-func hideCursor() {
-	fmt.Print("\033[?25l")
-}
-
-// showCursor restores the terminal cursor.
-func showCursor() {
-	fmt.Print("\033[?25h")
-}
-
-// SetOutputFile configures where successful results are saved.
-func (s *QueueScanner) SetOutputFile(filename string) {
-	s.ctx.OutputFile = filename
 }
