@@ -6,6 +6,7 @@ import (
 	"os"
 	"sync"
 	"sync/atomic"
+	"time"
 
 	"golang.org/x/term"
 )
@@ -17,6 +18,7 @@ type Ctx struct {
 	dataList         []string   // Data items to process
 	mx               sync.Mutex // Thread-safe access to shared resources
 	OutputFile       string     // Output file path for results
+	startTime        int64      // Unix timestamp in nanoseconds when scan started
 }
 
 // Log prints a message with proper line clearing.
@@ -35,13 +37,21 @@ func (c *Ctx) LogReplace(currentItem any) {
 	scanComplete := atomic.LoadInt64(&c.ScanComplete)
 	scanCompletePercentage := float64(scanComplete) / float64(len(c.dataList)) * 100
 
+	etaStr := "--"
+	if scanComplete > 0 && len(c.dataList) > 0 {
+		elapsed := float64(nowNano()-c.startTime) / 1e9 // seconds
+		avgPerItem := elapsed / float64(scanComplete)
+		remaining := float64(len(c.dataList) - int(scanComplete))
+		eta := avgPerItem * remaining
+		etaStr = formatSeconds(int(eta))
+	}
 	s := fmt.Sprintf(
-		"%.2f%% - C: %d / %d - S: %d - %s",
+		"%.2f%% - C: %d / %d - S: %d - ETA: %s",
 		scanCompletePercentage,
 		scanComplete,
 		len(c.dataList),
 		scanSuccess,
-		fmt.Sprintf("%v", currentItem),
+		etaStr,
 	)
 
 	// Handle terminal width to prevent wrapping
@@ -133,8 +143,25 @@ func (s *QueueScanner) Add(dataList []string) {
 	s.ctx.dataList = dataList
 }
 
+// nowNano returns current Unix timestamp in nanoseconds.
+func nowNano() int64 {
+	return time.Now().UnixNano()
+}
+
+// formatSeconds formats seconds as H:MM:SS or M:SS.
+func formatSeconds(sec int) string {
+	h := sec / 3600
+	m := (sec % 3600) / 60
+	s := sec % 60
+	if h > 0 {
+		return fmt.Sprintf("%d:%02d:%02d", h, m, s)
+	}
+	return fmt.Sprintf("%d:%02d", m, s)
+}
+
 // Start begins scanning and blocks until all tasks complete.
 func (s *QueueScanner) Start() {
+	s.ctx.startTime = nowNano()
 	hideCursor()
 	defer showCursor()
 
