@@ -85,7 +85,7 @@ type QueueScannerScanFunc func(c *Ctx, data any)
 type QueueScanner struct {
 	threads  int                  // Number of worker goroutines
 	scanFunc QueueScannerScanFunc // Function called for each scan task
-	queue    chan any             // Buffered channel for pending tasks
+	queue    chan string          // Buffered channel for pending tasks
 	wg       sync.WaitGroup       // Coordinates worker lifecycle
 	ctx      *Ctx                 // Shared execution context
 }
@@ -95,7 +95,7 @@ func NewQueueScanner(threads int, scanFunc QueueScannerScanFunc) *QueueScanner {
 	t := &QueueScanner{
 		threads:  threads,
 		scanFunc: scanFunc,
-		queue:    make(chan any, threads*2),
+		queue:    make(chan string, threads*2),
 		ctx:      &Ctx{},
 	}
 
