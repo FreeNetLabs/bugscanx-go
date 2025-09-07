@@ -16,7 +16,7 @@ Download the latest prebuilt binary directly from the [Releases](https://github.
 ### Build from Source
 
 ```bash
-go install github.com/Ayanrajpoot10/bugscanx-go@latest
+go install github.com/ayanrajpoot10/bugscanx-go@latest
 ```
 
 ## Usage
