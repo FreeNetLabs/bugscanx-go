@@ -133,9 +133,7 @@ func runScanSNI(cmd *cobra.Command, args []string) {
 	queueScanner := queuescanner.NewQueueScanner(globalFlagThreads, scanSNI)
 
 	// Add all domains to the scan queue
-	for _, domain := range domains {
-		queueScanner.Add(domain)
-	}
+	queueScanner.Add(domains)
 
 	// Configure output file if specified
 	queueScanner.SetOutputFile(sniFlagOutput)

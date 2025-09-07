@@ -84,9 +84,7 @@ func pingRun(cmd *cobra.Command, args []string) {
 	scanner := queuescanner.NewQueueScanner(globalFlagThreads, pingHost)
 
 	// Add all hosts to the scan queue
-	for _, host := range hosts {
-		scanner.Add(host)
-	}
+	scanner.Add(hosts)
 
 	// Configure output file if specified
 	scanner.SetOutputFile(pingFlagOutput)

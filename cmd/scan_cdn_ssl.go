@@ -210,51 +210,44 @@ func getScanCdnSslPayloadDecoded(bug ...string) string {
 
 // runScanCdnSsl orchestrates CDN SSL scanning from various proxy sources.
 func runScanCdnSsl(cmd *cobra.Command, args []string) {
-	proxyHostList := make(map[string]bool)
+    // Collect all CDN proxy hosts into a single slice
+    var proxyHosts []string
 
-	// Collect CDN proxy hosts from single host flag
-	if cdnSslFlagProxyHost != "" {
-		proxyHostList[cdnSslFlagProxyHost] = true
-	}
+    // Add single host from flag
+    if cdnSslFlagProxyHost != "" {
+        proxyHosts = append(proxyHosts, cdnSslFlagProxyHost)
+    }
 
-	// Collect CDN proxy hosts from file
-	if cdnSslFlagProxyHostFilename != "" {
-		lines, err := ReadLines(cdnSslFlagProxyHostFilename)
-		if err != nil {
-			fmt.Println(err.Error())
-			os.Exit(1)
-		}
-		for _, proxyHost := range lines {
-			proxyHostList[proxyHost] = true
-		}
-	}
+    // Add hosts from file
+    if cdnSslFlagProxyHostFilename != "" {
+        lines, err := ReadLines(cdnSslFlagProxyHostFilename)
+        if err != nil {
+            fmt.Println(err.Error())
+            os.Exit(1)
+        }
+        proxyHosts = append(proxyHosts, lines...)
+    }
 
-	// Collect CDN proxy hosts from CIDR range
-	if cdnSslFlagProxyCidr != "" {
-		proxyHostListFromCidr, err := IPsFromCIDR(cdnSslFlagProxyCidr)
-		if err != nil {
-			fmt.Printf("Converting ip list from cidr error: %s", err.Error())
-			os.Exit(1)
-		}
+    // Add hosts from CIDR range
+    if cdnSslFlagProxyCidr != "" {
+        cidrHosts, err := IPsFromCIDR(cdnSslFlagProxyCidr)
+        if err != nil {
+            fmt.Printf("Converting IP list from CIDR error: %s\n", err.Error())
+            os.Exit(1)
+        }
+        proxyHosts = append(proxyHosts, cidrHosts...)
+    }
 
-		for _, proxyHost := range proxyHostListFromCidr {
-			proxyHostList[proxyHost] = true
-		}
-	}
+    // Initialize queue scanner for CDN SSL scanning
+    queueScanner := queuescanner.NewQueueScanner(globalFlagThreads, scanCdnSsl)
 
-	// Initialize queue scanner for CDN SSL scanning
-	queueScanner := queuescanner.NewQueueScanner(globalFlagThreads, scanCdnSsl)
+    // Add all collected CDN proxy hosts at once (slice stored only once)
+    queueScanner.Add(proxyHosts)
 
-	// Process each CDN proxy host and add to scan queue
-	for proxyHost := range proxyHostList {
-		// Add just the proxy host to the queue
-		queueScanner.Add(proxyHost)
-	}
+    // Display SSL payload being used
+    fmt.Printf("%s\n\n", getScanCdnSslPayloadDecoded())
 
-	// Display SSL payload being used
-	fmt.Printf("%s\n\n", getScanCdnSslPayloadDecoded())
-
-	// Configure output and start CDN SSL scanning
-	queueScanner.SetOutputFile(cdnSslFlagOutput)
-	queueScanner.Start()
+    // Configure output and start CDN SSL scanning
+    queueScanner.SetOutputFile(cdnSslFlagOutput)
+    queueScanner.Start()
 }

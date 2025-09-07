@@ -184,9 +184,7 @@ func scanDirectRun(cmd *cobra.Command, args []string) {
 	queueScanner := queuescanner.NewQueueScanner(globalFlagThreads, scanDirect)
 
 	// Add all domains to the scan queue
-	for _, domain := range hosts {
-		queueScanner.Add(domain)
-	}
+	queueScanner.Add(hosts)
 
 	// Configure output file if specified
 	queueScanner.SetOutputFile(scanDirectFlagOutput)

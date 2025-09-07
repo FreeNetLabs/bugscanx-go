@@ -200,51 +200,43 @@ func getScanProxyPayloadDecoded(bug ...string) string {
 
 // runScanProxy orchestrates the proxy scanning process from various sources.
 func runScanProxy(cmd *cobra.Command, args []string) {
-	proxyHostList := make(map[string]bool)
+    var proxyHosts []string
 
-	// Collect proxy hosts from single host flag
-	if scanProxyFlagProxyHost != "" {
-		proxyHostList[scanProxyFlagProxyHost] = true
-	}
+    // Add single host from flag
+    if scanProxyFlagProxyHost != "" {
+        proxyHosts = append(proxyHosts, scanProxyFlagProxyHost)
+    }
 
-	// Collect proxy hosts from file
-	if scanProxyFlagProxyHostFilename != "" {
-		lines, err := ReadLines(scanProxyFlagProxyHostFilename)
-		if err != nil {
-			fmt.Println(err.Error())
-			os.Exit(1)
-		}
-		for _, proxyHost := range lines {
-			proxyHostList[proxyHost] = true
-		}
-	}
+    // Add hosts from file
+    if scanProxyFlagProxyHostFilename != "" {
+        lines, err := ReadLines(scanProxyFlagProxyHostFilename)
+        if err != nil {
+            fmt.Println(err.Error())
+            os.Exit(1)
+        }
+        proxyHosts = append(proxyHosts, lines...)
+    }
 
-	// Collect proxy hosts from CIDR range
-	if scanProxyFlagProxyCidr != "" {
-		proxyHostListFromCidr, err := IPsFromCIDR(scanProxyFlagProxyCidr)
-		if err != nil {
-			fmt.Printf("Converting ip list from cidr error: %s", err.Error())
-			os.Exit(1)
-		}
+    // Add hosts from CIDR range
+    if scanProxyFlagProxyCidr != "" {
+        cidrHosts, err := IPsFromCIDR(scanProxyFlagProxyCidr)
+        if err != nil {
+            fmt.Printf("Converting IP list from CIDR error: %s\n", err.Error())
+            os.Exit(1)
+        }
+        proxyHosts = append(proxyHosts, cidrHosts...)
+    }
 
-		for _, proxyHost := range proxyHostListFromCidr {
-			proxyHostList[proxyHost] = true
-		}
-	}
+    // Initialize queue scanner
+    queueScanner := queuescanner.NewQueueScanner(globalFlagThreads, scanProxy)
 
-	// Initialize queue scanner
-	queueScanner := queuescanner.NewQueueScanner(globalFlagThreads, scanProxy)
+    // Add all collected proxy hosts at once (slice stored only once)
+    queueScanner.Add(proxyHosts)
 
-	// Process each proxy host and add to scan queue
-	for proxyHost := range proxyHostList {
-		// Add just the proxy host to the queue
-		queueScanner.Add(proxyHost)
-	}
+    // Display payload being used
+    fmt.Printf("%s\n\n", getScanProxyPayloadDecoded())
 
-	// Display payload being used
-	fmt.Printf("%s\n\n", getScanProxyPayloadDecoded())
-
-	// Configure output and start scanning
-	queueScanner.SetOutputFile(scanProxyFlagOutput)
-	queueScanner.Start()
+    // Configure output and start scanning
+    queueScanner.SetOutputFile(scanProxyFlagOutput)
+    queueScanner.Start()
 }

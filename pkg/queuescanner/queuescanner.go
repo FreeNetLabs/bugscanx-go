@@ -14,7 +14,7 @@ import (
 type Ctx struct {
 	ScanComplete     int64      // Total completed scans (atomic)
 	ScanSuccessCount int64      // Successful scans (atomic)
-	dataList         []any      // Data items to process
+	dataList         []string   // Data items to process
 	mx               sync.Mutex // Thread-safe access to shared resources
 	OutputFile       string     // Output file path for results
 }
@@ -129,8 +129,8 @@ func (s *QueueScanner) run() {
 }
 
 // Add enqueues scan tasks for processing.
-func (s *QueueScanner) Add(dataList ...any) {
-	s.ctx.dataList = append(s.ctx.dataList, dataList...)
+func (s *QueueScanner) Add(dataList []string) {
+	s.ctx.dataList = dataList
 }
 
 // Start begins scanning and blocks until all tasks complete.
