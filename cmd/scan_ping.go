@@ -70,7 +70,7 @@ func pingHost(ctx *queuescanner.Ctx, data any) {
 // pingRun orchestrates the TCP ping process for all target hosts.
 func pingRun(cmd *cobra.Command, args []string) {
 	// Read target hosts from input file
-	hosts, err := ReadLinesFromFile(pingFlagFilename)
+	hosts, err := ReadLines(pingFlagFilename)
 	if err != nil {
 		fmt.Println(err.Error())
 		os.Exit(1)

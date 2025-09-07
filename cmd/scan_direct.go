@@ -170,7 +170,7 @@ func scanDirect(c *queuescanner.Ctx, data any) {
 // scanDirectRun orchestrates the direct scanning process.
 func scanDirectRun(cmd *cobra.Command, args []string) {
 	// Read target domains from input file
-	hosts, err := ReadLinesFromFile(scanDirectFlagFilename)
+	hosts, err := ReadLines(scanDirectFlagFilename)
 	if err != nil {
 		fmt.Println(err.Error())
 		os.Exit(1)

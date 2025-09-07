@@ -6,8 +6,8 @@ import (
 	"os"
 )
 
-// ReadLinesFromFile reads lines from a file, skipping empty lines.
-func ReadLinesFromFile(filename string) ([]string, error) {
+// ReadLines reads lines from a file, skipping empty lines.
+func ReadLines(filename string) ([]string, error) {
 	file, err := os.Open(filename)
 	if err != nil {
 		return nil, err
@@ -40,8 +40,8 @@ func ipInc(ip net.IP) {
 	}
 }
 
-// ipListFromCidr generates IP addresses from a CIDR block, excluding network/broadcast addresses.
-func ipListFromCidr(cidr string) ([]string, error) {
+// IPsFromCIDR generates IP addresses from a CIDR block, excluding network/broadcast addresses.
+func IPsFromCIDR(cidr string) ([]string, error) {
 	ip, ipnet, err := net.ParseCIDR(cidr)
 	if err != nil {
 		return nil, err

@@ -105,7 +105,7 @@ func scanSNI(c *queuescanner.Ctx, data any) {
 // runScanSNI orchestrates the SNI scanning process with domain processing.
 func runScanSNI(cmd *cobra.Command, args []string) {
 	// Read target domains from input file
-	lines, err := ReadLinesFromFile(sniFlagFilename)
+	lines, err := ReadLines(sniFlagFilename)
 	if err != nil {
 		fmt.Println(err.Error())
 		os.Exit(1)
