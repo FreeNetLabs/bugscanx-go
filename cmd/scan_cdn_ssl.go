@@ -68,9 +68,7 @@ func init() {
 }
 
 // scanCdnSsl tests CDN SSL proxy by establishing TLS connection and sending HTTP requests.
-func scanCdnSsl(c *queuescanner.Ctx, data any) {
-	proxyHost := data.(string)
-
+func scanCdnSsl(c *queuescanner.Ctx, proxyHost string) {
 	// Calculate bug value for this proxy host
 	regexpIsIP := regexp.MustCompile(`\d+$`)
 	bug := cdnSslFlagBug

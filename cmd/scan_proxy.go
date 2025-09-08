@@ -66,8 +66,7 @@ func init() {
 }
 
 // scanProxy tests a proxy server by sending HTTP requests and analyzing responses.
-func scanProxy(c *queuescanner.Ctx, data any) {
-	proxyHost := data.(string)
+func scanProxy(c *queuescanner.Ctx, proxyHost string) {
 
 	// Calculate bug value for this proxy host
 	regexpIsIP := regexp.MustCompile(`\d+$`)

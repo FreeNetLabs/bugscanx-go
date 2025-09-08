@@ -22,7 +22,7 @@ type Ctx struct {
 }
 
 // QueueScannerScanFunc defines the signature for scan worker functions.
-type QueueScannerScanFunc func(c *Ctx, data any)
+type QueueScannerScanFunc func(c *Ctx, host string)
 
 // QueueScanner manages concurrent task execution with progress tracking.
 type QueueScanner struct {

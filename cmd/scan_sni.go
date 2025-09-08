@@ -46,9 +46,7 @@ func init() {
 }
 
 // scanSNI performs SNI scanning on a domain by establishing TLS connection.
-func scanSNI(c *queuescanner.Ctx, data any) {
-	domain := data.(string)
-
+func scanSNI(c *queuescanner.Ctx, domain string) {
 	var conn net.Conn
 	var err error
 

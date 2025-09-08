@@ -43,9 +43,7 @@ func init() {
 }
 
 // pingHost performs TCP ping test on a host and reports successful connections.
-func pingHost(ctx *queuescanner.Ctx, data any) {
-	host := data.(string)
-
+func pingHost(ctx *queuescanner.Ctx, host string) {
 	// Attempt TCP connection with specified timeout
 	conn, err := net.DialTimeout("tcp", net.JoinHostPort(host, fmt.Sprintf("%d", pingFlagPort)), time.Duration(pingFlagTimeout)*time.Second)
 	if err != nil {
@@ -81,14 +79,14 @@ func pingRun(cmd *cobra.Command, args []string) {
 	fmt.Printf("%-16s %-20s\n", "----------", "----")
 
 	// Initialize queue scanner with configured thread count
-	scanner := queuescanner.NewQueueScanner(globalFlagThreads, pingHost)
+	queuescanner := queuescanner.NewQueueScanner(globalFlagThreads, pingHost)
 
 	// Add all hosts to the scan queue
-	scanner.Add(hosts)
+	queuescanner.Add(hosts)
 
 	// Configure output file if specified
-	scanner.SetOutputFile(pingFlagOutput)
+	queuescanner.SetOutputFile(pingFlagOutput)
 
 	// Start the ping scanning process
-	scanner.Start()
+	queuescanner.Start()
 }

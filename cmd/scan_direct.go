@@ -52,8 +52,8 @@ func init() {
 	directCmd.MarkFlagRequired("filename")
 }
 
-// parseHTTPResponse extracts status code, server, and location from HTTP response.
-func parseHTTPResponse(response string) (statusCode int, server string, location string) {
+// extractHTTPHeaders extracts status code, server, and location from HTTP response.
+func extractHTTPHeaders(response string) (statusCode int, server string, location string) {
 	lines := strings.Split(response, "\n")
 
 	// Parse status line to extract HTTP status code
@@ -84,9 +84,7 @@ func parseHTTPResponse(response string) (statusCode int, server string, location
 }
 
 // scanDirect performs a direct HTTP/HTTPS scan on a target domain.
-func scanDirect(c *queuescanner.Ctx, data any) {
-	domain := data.(string)
-
+func scanDirect(c *queuescanner.Ctx, domain string) {
 	// Determine port based on protocol
 	port := "80"
 	if scanDirectFlagHttps {
@@ -152,15 +150,15 @@ func scanDirect(c *queuescanner.Ctx, data any) {
 
 	// Parse HTTP response
 	response := string(buffer[:n])
-	statusCode, hServer, hLocation := parseHTTPResponse(response)
+	statusCode, server, location := extractHTTPHeaders(response)
 
 	// Filter results based on Location header if configured
-	if scanDirectFlagHideLocation != "" && hLocation == scanDirectFlagHideLocation {
+	if scanDirectFlagHideLocation != "" && location == scanDirectFlagHideLocation {
 		return // Found matching location to hide
 	}
 
 	// Format successful scan result
-	formatted := fmt.Sprintf("%-15s  %-3d   %-16s    %s", ipStr, statusCode, hServer, domain)
+	formatted := fmt.Sprintf("%-15s  %-3d   %-16s    %s", ipStr, statusCode, server, domain)
 
 	// Log successful result
 	c.ScanSuccess(formatted)
