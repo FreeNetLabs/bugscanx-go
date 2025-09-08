@@ -42,10 +42,8 @@ var (
 
 // init sets up the proxy command with flags and configuration.
 func init() {
-	// Add the proxy command to the root command
 	rootCmd.AddCommand(scanProxyCmd)
 
-	// Define command-specific flags with appropriate defaults
 	scanProxyCmd.Flags().StringVarP(&scanProxyFlagProxyCidr, "cidr", "c", "", "cidr proxy to scan e.g. 104.16.0.0/24")
 	scanProxyCmd.Flags().StringVar(&scanProxyFlagProxyHost, "proxy", "", "proxy without port")
 	scanProxyCmd.Flags().StringVarP(&scanProxyFlagProxyHostFilename, "filename", "f", "", "proxy filename without port")
@@ -61,7 +59,6 @@ func init() {
 	scanProxyCmd.Flags().IntVar(&scanProxyFlagTimeout, "timeout", 3, "handshake timeout")
 	scanProxyCmd.Flags().StringVarP(&scanProxyFlagOutput, "output", "o", "", "output result")
 
-	// Normalize method flag to uppercase
 	scanProxyFlagMethod = strings.ToUpper(scanProxyFlagMethod)
 }
 
@@ -73,9 +70,9 @@ func scanProxy(c *queuescanner.Ctx, proxyHost string) {
 	bug := scanProxyFlagBug
 	if bug == "" {
 		if regexpIsIP.MatchString(proxyHost) {
-			bug = scanProxyFlagTarget // Use target for IP proxies
+			bug = scanProxyFlagTarget
 		} else {
-			bug = proxyHost // Use proxy hostname for domain proxies
+			bug = proxyHost
 		}
 	}
 
@@ -95,7 +92,7 @@ func scanProxy(c *queuescanner.Ctx, proxyHost string) {
 	for {
 		dialCount++
 		if dialCount > 3 {
-			return // Max retries reached
+			return
 		}
 
 		// Attempt connection to proxy
@@ -103,19 +100,19 @@ func scanProxy(c *queuescanner.Ctx, proxyHost string) {
 		if err != nil {
 			// Handle specific error types
 			if errors.As(err, &dnsErr) {
-				return // DNS resolution failed, don't retry
+				return
 			}
 			if e, ok := err.(net.Error); ok && e.Timeout() {
-				continue // Retry on timeout
+				continue
 			}
 			if opError, ok := err.(*net.OpError); ok {
 				if syscalErr, ok := opError.Err.(*os.SyscallError); ok {
 					if syscalErr.Err.Error() == "network is unreachable" {
-						return // Network unreachable, don't retry
+						return
 					}
 				}
 			}
-			return // Other errors, give up
+			return
 		}
 		defer conn.Close()
 		break
@@ -148,7 +145,7 @@ func scanProxy(c *queuescanner.Ctx, proxyHost string) {
 		for scanner.Scan() {
 			line := scanner.Text()
 			if line == "" {
-				break // End of headers
+				break
 			}
 			// Collect important response lines
 			if isPrefix || strings.HasPrefix(line, "Location") || strings.HasPrefix(line, "Server") {

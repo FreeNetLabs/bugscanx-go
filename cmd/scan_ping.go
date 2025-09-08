@@ -29,16 +29,13 @@ var (
 
 // init sets up the ping command with flags and validation.
 func init() {
-	// Add the ping command to the root command
 	rootCmd.AddCommand(pingCmd)
 
-	// Define command-specific flags with appropriate defaults
 	pingCmd.Flags().StringVarP(&pingFlagFilename, "filename", "f", "", "domain list filename")
 	pingCmd.Flags().IntVar(&pingFlagTimeout, "timeout", 2, "timeout in seconds")
 	pingCmd.Flags().StringVarP(&pingFlagOutput, "output", "o", "", "output result")
 	pingCmd.Flags().IntVar(&pingFlagPort, "port", 80, "port to use")
 
-	// Mark required flags
 	pingCmd.MarkFlagRequired("filename")
 }
 
@@ -47,7 +44,7 @@ func pingHost(ctx *queuescanner.Ctx, host string) {
 	// Attempt TCP connection with specified timeout
 	conn, err := net.DialTimeout("tcp", net.JoinHostPort(host, fmt.Sprintf("%d", pingFlagPort)), time.Duration(pingFlagTimeout)*time.Second)
 	if err != nil {
-		return // Connection failed, skip this host
+		return
 	}
 	defer conn.Close()
 

@@ -43,10 +43,8 @@ var (
 
 // init sets up the CDN SSL command with flags and configuration.
 func init() {
-	// Add the CDN SSL command to the root command
 	rootCmd.AddCommand(scanCdnSslCmd)
 
-	// Define command-specific flags with appropriate defaults for SSL scanning
 	scanCdnSslCmd.Flags().StringVarP(&cdnSslFlagProxyCidr, "cidr", "c", "", "cidr cdn proxy to scan e.g. 127.0.0.1/32")
 	scanCdnSslCmd.Flags().StringVar(&cdnSslFlagProxyHost, "proxy", "", "cdn proxy without port")
 	scanCdnSslCmd.Flags().StringVarP(&cdnSslFlagProxyHostFilename, "filename", "f", "", "cdn proxy filename without port")
@@ -63,7 +61,6 @@ func init() {
 	scanCdnSslCmd.Flags().IntVar(&cdnSslFlagTimeout, "timeout", 3, "handshake timeout")
 	scanCdnSslCmd.Flags().StringVarP(&cdnSslFlagOutput, "output", "o", "", "output result")
 
-	// Normalize method flag to uppercase
 	cdnSslFlagMethod = strings.ToUpper(cdnSslFlagMethod)
 }
 
@@ -74,9 +71,9 @@ func scanCdnSsl(c *queuescanner.Ctx, proxyHost string) {
 	bug := cdnSslFlagBug
 	if bug == "" {
 		if regexpIsIP.MatchString(proxyHost) {
-			bug = cdnSslFlagTarget // Use target for IP-based CDN proxies
+			bug = cdnSslFlagTarget
 		} else {
-			bug = proxyHost // Use proxy hostname for domain-based CDN proxies
+			bug = proxyHost
 		}
 	}
 
@@ -95,7 +92,7 @@ func scanCdnSsl(c *queuescanner.Ctx, proxyHost string) {
 	for {
 		dialCount++
 		if dialCount > 3 {
-			return // Max retries reached
+			return
 		}
 
 		// Attempt TCP connection
@@ -104,16 +101,16 @@ func scanCdnSsl(c *queuescanner.Ctx, proxyHost string) {
 			// Handle specific error types
 			if e, ok := err.(net.Error); ok && e.Timeout() {
 				c.LogReplacef("%s:%d - Dial Timeout", proxyHost, cdnSslFlagProxyPort)
-				continue // Retry on timeout
+				continue
 			}
 			if opError, ok := err.(*net.OpError); ok {
 				if syscalErr, ok := opError.Err.(*os.SyscallError); ok {
 					if syscalErr.Err.Error() == "network is unreachable" {
-						return // Network unreachable, don't retry
+						return
 					}
 				}
 			}
-			return // Other errors, give up
+			return
 		}
 		defer conn.Close()
 		break
@@ -121,8 +118,8 @@ func scanCdnSsl(c *queuescanner.Ctx, proxyHost string) {
 
 	// Establish TLS connection with SNI
 	tlsConn := tls.Client(conn, &tls.Config{
-		ServerName:         bug,  // Use bug as SNI hostname
-		InsecureSkipVerify: true, // Skip certificate verification
+		ServerName:         bug,
+		InsecureSkipVerify: true,
 	})
 
 	// Perform TLS handshake with timeout
@@ -131,7 +128,7 @@ func scanCdnSsl(c *queuescanner.Ctx, proxyHost string) {
 
 	err = tlsConn.HandshakeContext(ctxHandshake)
 	if err != nil {
-		return // TLS handshake failed
+		return
 	}
 
 	// Set up timeout context for response handling
@@ -149,7 +146,7 @@ func scanCdnSsl(c *queuescanner.Ctx, proxyHost string) {
 
 		_, err = tlsConn.Write([]byte(payload))
 		if err != nil {
-			return // Failed to send request
+			return
 		}
 
 		// Read and parse SSL response
@@ -160,7 +157,7 @@ func scanCdnSsl(c *queuescanner.Ctx, proxyHost string) {
 		for scanner.Scan() {
 			line := scanner.Text()
 			if line == "" {
-				break // End of headers
+				break
 			}
 			// Collect important response lines
 			if isPrefix || strings.HasPrefix(line, "Location") || strings.HasPrefix(line, "Server") {

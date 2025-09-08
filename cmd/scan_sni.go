@@ -32,16 +32,13 @@ var (
 
 // init sets up the SNI command with flags and validation.
 func init() {
-	// Add the SNI command to the root command
 	rootCmd.AddCommand(sniCmd)
 
-	// Define command-specific flags with appropriate defaults
 	sniCmd.Flags().StringVarP(&sniFlagFilename, "filename", "f", "", "domain list filename")
 	sniCmd.Flags().IntVarP(&sniFlagDeep, "deep", "d", 0, "deep subdomain")
 	sniCmd.Flags().IntVar(&sniFlagTimeout, "timeout", 3, "handshake timeout")
 	sniCmd.Flags().StringVarP(&sniFlagOutput, "output", "o", "", "output result")
 
-	// Mark required flags
 	sniCmd.MarkFlagRequired("filename")
 }
 
@@ -55,7 +52,7 @@ func scanSNI(c *queuescanner.Ctx, domain string) {
 	for {
 		dialCount++
 		if dialCount > 3 {
-			return // Max retries reached
+			return
 		}
 
 		// Attempt TCP connection to port 443
@@ -63,9 +60,9 @@ func scanSNI(c *queuescanner.Ctx, domain string) {
 		if err != nil {
 			if e, ok := err.(net.Error); ok && e.Timeout() {
 				c.LogReplacef("%s - Dial Timeout", domain)
-				continue // Retry on timeout
+				continue
 			}
-			return // Non-timeout error, give up
+			return
 		}
 		defer conn.Close()
 		break
@@ -80,8 +77,8 @@ func scanSNI(c *queuescanner.Ctx, domain string) {
 
 	// Create TLS client connection with SNI
 	tlsConn := tls.Client(conn, &tls.Config{
-		ServerName:         domain, // SNI value
-		InsecureSkipVerify: true,   // Skip certificate verification
+		ServerName:         domain,
+		InsecureSkipVerify: true,
 	})
 	defer tlsConn.Close()
 
@@ -91,7 +88,7 @@ func scanSNI(c *queuescanner.Ctx, domain string) {
 
 	err = tlsConn.HandshakeContext(ctxHandshake)
 	if err != nil {
-		return // Handshake failed
+		return
 	}
 
 	// Format and report successful SNI scan result

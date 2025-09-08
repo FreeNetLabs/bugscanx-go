@@ -36,10 +36,8 @@ var (
 
 // init sets up the direct command with flags and validation.
 func init() {
-	// Add the direct command to the root command
 	rootCmd.AddCommand(directCmd)
 
-	// Define command-specific flags
 	directCmd.Flags().StringVarP(&scanDirectFlagFilename, "filename", "f", "", "domain list filename")
 	directCmd.Flags().StringVarP(&scanDirectFlagOutput, "output", "o", "", "output result")
 	directCmd.Flags().StringVarP(&scanDirectFlagMethod, "method", "m", "HEAD", "HTTP method to use")
@@ -48,7 +46,6 @@ func init() {
 	directCmd.Flags().IntVar(&scanDirectFlagTimeoutConnect, "timeout-connect", 5, "TCP connect timeout in seconds")
 	directCmd.Flags().IntVar(&scanDirectFlagTimeoutRequest, "timeout-request", 10, "Overall request timeout in seconds")
 
-	// Mark required flags
 	directCmd.MarkFlagRequired("filename")
 }
 
@@ -70,7 +67,7 @@ func extractHTTPHeaders(response string) (statusCode int, server string, locatio
 	for _, line := range lines[1:] {
 		line = strings.TrimSpace(line)
 		if line == "" {
-			break // End of headers
+			break
 		}
 
 		if strings.HasPrefix(strings.ToLower(line), "server:") {
@@ -94,7 +91,7 @@ func scanDirect(c *queuescanner.Ctx, domain string) {
 	// Resolve IP addresses
 	ips, err := net.DefaultResolver.LookupIP(context.Background(), "ip4", domain)
 	if err != nil || len(ips) == 0 {
-		return // DNS resolution failed
+		return
 	}
 
 	// Use the first resolved IPv4 address
@@ -113,13 +110,13 @@ func scanDirect(c *queuescanner.Ctx, domain string) {
 	if scanDirectFlagHttps {
 		conn, err = tls.DialWithDialer(dialer, network, address, &tls.Config{
 			InsecureSkipVerify: true,
-			ServerName:         domain, // SNI
+			ServerName:         domain,
 		})
 	} else {
 		conn, err = dialer.Dial(network, address)
 	}
 	if err != nil {
-		return // Connection failed
+		return
 	}
 	defer conn.Close()
 
@@ -138,14 +135,14 @@ func scanDirect(c *queuescanner.Ctx, domain string) {
 	// Send HTTP request
 	_, err = conn.Write([]byte(httpRequest))
 	if err != nil {
-		return // Failed to send request
+		return
 	}
 
 	// Read response with buffer
 	buffer := make([]byte, 4096)
 	n, err := conn.Read(buffer)
 	if err != nil {
-		return // Failed to read response
+		return
 	}
 
 	// Parse HTTP response
@@ -154,7 +151,7 @@ func scanDirect(c *queuescanner.Ctx, domain string) {
 
 	// Filter results based on Location header if configured
 	if scanDirectFlagHideLocation != "" && location == scanDirectFlagHideLocation {
-		return // Found matching location to hide
+		return
 	}
 
 	// Format successful scan result
