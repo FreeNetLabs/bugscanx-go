@@ -19,7 +19,6 @@ import (
 var scanCdnSslCmd = &cobra.Command{
 	Use:     "cdn-ssl",
 	Short:   "Scan using CDN SSL proxy with payload injection to SSL targets.",
-	Example: "  bugscanx-go cdn-ssl --filename proxy.txt --target sslsite.com\n  bugscanx-go cdn-ssl --cidr 10.0.0.0/8 --target sslsite.com --payload test",
 	Run:     runScanCdnSsl,
 }
 

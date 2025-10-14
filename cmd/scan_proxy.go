@@ -19,7 +19,6 @@ import (
 var scanProxyCmd = &cobra.Command{
 	Use:     "proxy",
 	Short:   "Scan using a proxy with payload to a target.",
-	Example: "  bugscanx-go proxy --cidr 192.168.1.0/24 --target example.com\n  bugscanx-go proxy --filename proxy.txt --target example.com --payload test",
 	Run:     runScanProxy,
 }
 

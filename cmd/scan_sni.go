@@ -17,7 +17,6 @@ import (
 var sniCmd = &cobra.Command{
 	Use:     "sni",
 	Short:   "Scan server name indication (SNI) list from file.",
-	Example: "  bugscanx-go sni -f domains.txt\n  bugscanx-go sni -f domains.txt --deep 2 --timeout 5",
 	Run:     runScanSNI,
 }
 

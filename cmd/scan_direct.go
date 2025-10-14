@@ -18,7 +18,6 @@ import (
 var directCmd = &cobra.Command{
 	Use:     "direct",
 	Short:   "Scan using direct connection to targets.",
-	Example: "  bugscanx-go direct -f hosts.txt\n  bugscanx-go direct -f hosts.txt --https --method GET",
 	Run:     scanDirectRun,
 }
 

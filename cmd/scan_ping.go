@@ -14,7 +14,6 @@ import (
 var pingCmd = &cobra.Command{
 	Use:     "ping",
 	Short:   "Scan hosts using TCP ping.",
-	Example: "  bugscanx-go ping -f hosts.txt\n  bugscanx-go ping -f hosts.txt --port 443 --timeout 5",
 	Run:     pingRun,
 }
 
