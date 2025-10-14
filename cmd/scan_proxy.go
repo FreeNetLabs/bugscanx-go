@@ -16,69 +16,69 @@ import (
 	"github.com/ayanrajpoot10/bugscanx-go/pkg/queuescanner"
 )
 
-var scanProxyCmd = &cobra.Command{
+var proxyCmd = &cobra.Command{
 	Use:     "proxy",
 	Short:   "Scan using a proxy with payload to a target.",
 	Run:     runScanProxy,
 }
 
 var (
-	scanProxyFlagProxyCidr         string
-	scanProxyFlagProxyHost         string
-	scanProxyFlagProxyHostFilename string
-	scanProxyFlagProxyPort         int
-	scanProxyFlagBug               string
-	scanProxyFlagMethod            string
-	scanProxyFlagTarget            string
-	scanProxyFlagPath              string
-	scanProxyFlagProtocol          string
-	scanProxyFlagPayload           string
-	scanProxyFlagTimeout           int
-	scanProxyFlagOutput            string
+	proxyFlagProxyCidr         string
+	proxyFlagProxyHost         string
+	proxyFlagProxyHostFilename string
+	proxyFlagProxyPort         int
+	proxyFlagBug               string
+	proxyFlagMethod            string
+	proxyFlagTarget            string
+	proxyFlagPath              string
+	proxyFlagProtocol          string
+	proxyFlagPayload           string
+	proxyFlagTimeout           int
+	proxyFlagOutput            string
 )
 
 func init() {
-	rootCmd.AddCommand(scanProxyCmd)
+	rootCmd.AddCommand(proxyCmd)
 
-	scanProxyCmd.Flags().StringVarP(&scanProxyFlagProxyCidr, "cidr", "c", "", "cidr proxy to scan e.g. 104.16.0.0/24")
-	scanProxyCmd.Flags().StringVar(&scanProxyFlagProxyHost, "proxy", "", "proxy without port")
-	scanProxyCmd.Flags().StringVarP(&scanProxyFlagProxyHostFilename, "filename", "f", "", "proxy filename without port")
-	scanProxyCmd.Flags().IntVarP(&scanProxyFlagProxyPort, "port", "p", 80, "proxy port")
-	scanProxyCmd.Flags().StringVarP(&scanProxyFlagBug, "bug", "B", "", "bug to use when proxy is ip instead of domain")
-	scanProxyCmd.Flags().StringVarP(&scanProxyFlagMethod, "method", "M", "GET", "request method")
-	scanProxyCmd.Flags().StringVar(&scanProxyFlagTarget, "target", "", "target server (response must be 101)")
-	scanProxyCmd.Flags().StringVar(&scanProxyFlagPath, "path", "/", "request path")
-	scanProxyCmd.Flags().StringVar(&scanProxyFlagProtocol, "protocol", "HTTP/1.1", "request protocol")
-	scanProxyCmd.Flags().StringVar(
-		&scanProxyFlagPayload, "payload", "[method] [path] [protocol][crlf]Host: [host][crlf]Upgrade: websocket[crlf][crlf]", "request payload for sending throught proxy",
+	proxyCmd.Flags().StringVarP(&proxyFlagProxyCidr, "cidr", "c", "", "cidr proxy to scan e.g. 104.16.0.0/24")
+	proxyCmd.Flags().StringVar(&proxyFlagProxyHost, "proxy", "", "proxy without port")
+	proxyCmd.Flags().StringVarP(&proxyFlagProxyHostFilename, "filename", "f", "", "proxy filename without port")
+	proxyCmd.Flags().IntVarP(&proxyFlagProxyPort, "port", "p", 80, "proxy port")
+	proxyCmd.Flags().StringVarP(&proxyFlagBug, "bug", "B", "", "bug to use when proxy is ip instead of domain")
+	proxyCmd.Flags().StringVarP(&proxyFlagMethod, "method", "M", "GET", "request method")
+	proxyCmd.Flags().StringVar(&proxyFlagTarget, "target", "", "target server (response must be 101)")
+	proxyCmd.Flags().StringVar(&proxyFlagPath, "path", "/", "request path")
+	proxyCmd.Flags().StringVar(&proxyFlagProtocol, "protocol", "HTTP/1.1", "request protocol")
+	proxyCmd.Flags().StringVar(
+		&proxyFlagPayload, "payload", "[method] [path] [protocol][crlf]Host: [host][crlf]Upgrade: websocket[crlf][crlf]", "request payload for sending throught proxy",
 	)
-	scanProxyCmd.Flags().IntVar(&scanProxyFlagTimeout, "timeout", 3, "handshake timeout")
-	scanProxyCmd.Flags().StringVarP(&scanProxyFlagOutput, "output", "o", "", "output result")
+	proxyCmd.Flags().IntVar(&proxyFlagTimeout, "timeout", 3, "handshake timeout")
+	proxyCmd.Flags().StringVarP(&proxyFlagOutput, "output", "o", "", "output result")
 
-	scanProxyFlagMethod = strings.ToUpper(scanProxyFlagMethod)
+	proxyFlagMethod = strings.ToUpper(proxyFlagMethod)
 }
 
 func scanProxy(c *queuescanner.Ctx, proxyHost string) {
 
 	regexpIsIP := regexp.MustCompile(`\d+$`)
-	bug := scanProxyFlagBug
+	bug := proxyFlagBug
 	if bug == "" {
 		if regexpIsIP.MatchString(proxyHost) {
-			bug = scanProxyFlagTarget
+			bug = proxyFlagTarget
 		} else {
 			bug = proxyHost
 		}
 	}
 
-	if scanProxyFlagPath == "/" {
-		bug = scanProxyFlagTarget
+	if proxyFlagPath == "/" {
+		bug = proxyFlagTarget
 	}
 
 	var conn net.Conn
 	var err error
 	dnsErr := new(net.DNSError)
 
-	proxyHostPort := net.JoinHostPort(proxyHost, fmt.Sprintf("%d", scanProxyFlagProxyPort))
+	proxyHostPort := net.JoinHostPort(proxyHost, fmt.Sprintf("%d", proxyFlagProxyPort))
 	dialCount := 0
 
 	for {
@@ -115,7 +115,7 @@ func scanProxy(c *queuescanner.Ctx, proxyHost string) {
 
 	go func() {
 		payload := getScanProxyPayloadDecoded(bug)
-		payload = strings.ReplaceAll(payload, "[host]", scanProxyFlagTarget)
+		payload = strings.ReplaceAll(payload, "[host]", proxyFlagTarget)
 		payload = strings.ReplaceAll(payload, "[crlf]", "\r\n")
 
 		_, err = conn.Write([]byte(payload))
@@ -163,10 +163,10 @@ func scanProxy(c *queuescanner.Ctx, proxyHost string) {
 }
 
 func getScanProxyPayloadDecoded(bug ...string) string {
-	payload := scanProxyFlagPayload
-	payload = strings.ReplaceAll(payload, "[method]", scanProxyFlagMethod)
-	payload = strings.ReplaceAll(payload, "[path]", scanProxyFlagPath)
-	payload = strings.ReplaceAll(payload, "[protocol]", scanProxyFlagProtocol)
+	payload := proxyFlagPayload
+	payload = strings.ReplaceAll(payload, "[method]", proxyFlagMethod)
+	payload = strings.ReplaceAll(payload, "[path]", proxyFlagPath)
+	payload = strings.ReplaceAll(payload, "[protocol]", proxyFlagProtocol)
 	if len(bug) > 0 {
 		payload = strings.ReplaceAll(payload, "[bug]", bug[0])
 	}
@@ -176,12 +176,12 @@ func getScanProxyPayloadDecoded(bug ...string) string {
 func runScanProxy(cmd *cobra.Command, args []string) {
 	var proxyHosts []string
 
-	if scanProxyFlagProxyHost != "" {
-		proxyHosts = append(proxyHosts, scanProxyFlagProxyHost)
+	if proxyFlagProxyHost != "" {
+		proxyHosts = append(proxyHosts, proxyFlagProxyHost)
 	}
 
-	if scanProxyFlagProxyHostFilename != "" {
-		lines, err := ReadLines(scanProxyFlagProxyHostFilename)
+	if proxyFlagProxyHostFilename != "" {
+		lines, err := ReadLines(proxyFlagProxyHostFilename)
 		if err != nil {
 			fmt.Println(err.Error())
 			os.Exit(1)
@@ -189,8 +189,8 @@ func runScanProxy(cmd *cobra.Command, args []string) {
 		proxyHosts = append(proxyHosts, lines...)
 	}
 
-	if scanProxyFlagProxyCidr != "" {
-		cidrHosts, err := IPsFromCIDR(scanProxyFlagProxyCidr)
+	if proxyFlagProxyCidr != "" {
+		cidrHosts, err := IPsFromCIDR(proxyFlagProxyCidr)
 		if err != nil {
 			fmt.Printf("Converting IP list from CIDR error: %s\n", err.Error())
 			os.Exit(1)
@@ -201,6 +201,6 @@ func runScanProxy(cmd *cobra.Command, args []string) {
 	queueScanner := queuescanner.NewQueueScanner(globalFlagThreads, scanProxy)
 	queueScanner.Add(proxyHosts)
 	fmt.Printf("%s\n\n", getScanProxyPayloadDecoded())
-	queueScanner.SetOutputFile(scanProxyFlagOutput)
+	queueScanner.SetOutputFile(proxyFlagOutput)
 	queueScanner.Start()
 }

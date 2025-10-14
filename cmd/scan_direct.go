@@ -22,25 +22,25 @@ var directCmd = &cobra.Command{
 }
 
 var (
-	scanDirectFlagFilename       string
-	scanDirectFlagHttps          bool
-	scanDirectFlagOutput         string
-	scanDirectFlagHideLocation   string
-	scanDirectFlagMethod         string
-	scanDirectFlagTimeoutConnect int
-	scanDirectFlagTimeoutRequest int
+	directFlagFilename       string
+	directFlagHttps          bool
+	directFlagOutput         string
+	directFlagHideLocation   string
+	directFlagMethod         string
+	directFlagTimeoutConnect int
+	directFlagTimeoutRequest int
 )
 
 func init() {
 	rootCmd.AddCommand(directCmd)
 
-	directCmd.Flags().StringVarP(&scanDirectFlagFilename, "filename", "f", "", "domain list filename")
-	directCmd.Flags().StringVarP(&scanDirectFlagOutput, "output", "o", "", "output result")
-	directCmd.Flags().StringVarP(&scanDirectFlagMethod, "method", "m", "HEAD", "HTTP method to use")
-	directCmd.Flags().BoolVar(&scanDirectFlagHttps, "https", false, "use https")
-	directCmd.Flags().StringVar(&scanDirectFlagHideLocation, "skip", "https://jio.com/BalanceExhaust", "skip results with this Location header")
-	directCmd.Flags().IntVar(&scanDirectFlagTimeoutConnect, "timeout-connect", 5, "TCP connect timeout in seconds")
-	directCmd.Flags().IntVar(&scanDirectFlagTimeoutRequest, "timeout-request", 10, "Overall request timeout in seconds")
+	directCmd.Flags().StringVarP(&directFlagFilename, "filename", "f", "", "domain list filename")
+	directCmd.Flags().StringVarP(&directFlagOutput, "output", "o", "", "output result")
+	directCmd.Flags().StringVarP(&directFlagMethod, "method", "m", "HEAD", "HTTP method to use")
+	directCmd.Flags().BoolVar(&directFlagHttps, "https", false, "use https")
+	directCmd.Flags().StringVar(&directFlagHideLocation, "skip", "https://jio.com/BalanceExhaust", "skip results with this Location header")
+	directCmd.Flags().IntVar(&directFlagTimeoutConnect, "timeout-connect", 5, "TCP connect timeout in seconds")
+	directCmd.Flags().IntVar(&directFlagTimeoutRequest, "timeout-request", 10, "Overall request timeout in seconds")
 
 	directCmd.MarkFlagRequired("filename")
 }
@@ -75,7 +75,7 @@ func extractHTTPHeaders(response string) (statusCode int, server string, locatio
 
 func scanDirect(c *queuescanner.Ctx, domain string) {
 	port := "80"
-	if scanDirectFlagHttps {
+	if directFlagHttps {
 		port = "443"
 	}
 
@@ -90,11 +90,11 @@ func scanDirect(c *queuescanner.Ctx, domain string) {
 	network := "tcp4"
 
 	dialer := &net.Dialer{
-		Timeout: time.Duration(scanDirectFlagTimeoutConnect) * time.Second,
+		Timeout: time.Duration(directFlagTimeoutConnect) * time.Second,
 	}
 
 	var conn net.Conn
-	if scanDirectFlagHttps {
+	if directFlagHttps {
 		conn, err = tls.DialWithDialer(dialer, network, address, &tls.Config{
 			InsecureSkipVerify: true,
 			ServerName:         domain,
@@ -107,9 +107,9 @@ func scanDirect(c *queuescanner.Ctx, domain string) {
 	}
 	defer conn.Close()
 
-	conn.SetDeadline(time.Now().Add(time.Duration(scanDirectFlagTimeoutRequest) * time.Second))
+	conn.SetDeadline(time.Now().Add(time.Duration(directFlagTimeoutRequest) * time.Second))
 
-	method := scanDirectFlagMethod
+	method := directFlagMethod
 	if method == "" {
 		method = "HEAD"
 	}
@@ -130,7 +130,7 @@ func scanDirect(c *queuescanner.Ctx, domain string) {
 	response := string(buffer[:n])
 	statusCode, server, location := extractHTTPHeaders(response)
 
-	if scanDirectFlagHideLocation != "" && location == scanDirectFlagHideLocation {
+	if directFlagHideLocation != "" && location == directFlagHideLocation {
 		return
 	}
 
@@ -141,7 +141,7 @@ func scanDirect(c *queuescanner.Ctx, domain string) {
 }
 
 func scanDirectRun(cmd *cobra.Command, args []string) {
-	hosts, err := ReadLines(scanDirectFlagFilename)
+	hosts, err := ReadLines(directFlagFilename)
 	if err != nil {
 		fmt.Println(err.Error())
 		os.Exit(1)
@@ -152,6 +152,6 @@ func scanDirectRun(cmd *cobra.Command, args []string) {
 
 	queueScanner := queuescanner.NewQueueScanner(globalFlagThreads, scanDirect)
 	queueScanner.Add(hosts)
-	queueScanner.SetOutputFile(scanDirectFlagOutput)
+	queueScanner.SetOutputFile(directFlagOutput)
 	queueScanner.Start()
 }
