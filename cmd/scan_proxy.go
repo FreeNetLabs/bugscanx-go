@@ -183,8 +183,7 @@ func runScanProxy(cmd *cobra.Command, args []string) {
 	if proxyFlagProxyHostFilename != "" {
 		lines, err := ReadLines(proxyFlagProxyHostFilename)
 		if err != nil {
-			fmt.Println(err.Error())
-			os.Exit(1)
+			fatal(err)
 		}
 		proxyHosts = append(proxyHosts, lines...)
 	}
@@ -192,8 +191,7 @@ func runScanProxy(cmd *cobra.Command, args []string) {
 	if proxyFlagProxyCidr != "" {
 		cidrHosts, err := IPsFromCIDR(proxyFlagProxyCidr)
 		if err != nil {
-			fmt.Printf("Converting IP list from CIDR error: %s\n", err.Error())
-			os.Exit(1)
+			fatal(err)
 		}
 		proxyHosts = append(proxyHosts, cidrHosts...)
 	}

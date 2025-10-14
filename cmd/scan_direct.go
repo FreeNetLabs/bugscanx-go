@@ -5,7 +5,6 @@ import (
 	"crypto/tls"
 	"fmt"
 	"net"
-	"os"
 	"strconv"
 	"strings"
 	"time"
@@ -143,8 +142,7 @@ func scanDirect(c *queuescanner.Ctx, host string) {
 func scanDirectRun(cmd *cobra.Command, args []string) {
 	hosts, err := ReadLines(directFlagFilename)
 	if err != nil {
-		fmt.Println(err.Error())
-		os.Exit(1)
+		fatal(err)
 	}
 
 	fmt.Printf("%-15s  %-3s  %-16s    %s\n", "IP Address", "Code", "Server", "Host")

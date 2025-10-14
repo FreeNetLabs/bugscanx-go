@@ -191,8 +191,7 @@ func runScanCdnSsl(cmd *cobra.Command, args []string) {
 	if cdnSslFlagProxyHostFilename != "" {
 		lines, err := ReadLines(cdnSslFlagProxyHostFilename)
 		if err != nil {
-			fmt.Println(err.Error())
-			os.Exit(1)
+			fatal(err)
 		}
 		proxyHosts = append(proxyHosts, lines...)
 	}
@@ -200,8 +199,7 @@ func runScanCdnSsl(cmd *cobra.Command, args []string) {
 	if cdnSslFlagProxyCidr != "" {
 		cidrHosts, err := IPsFromCIDR(cdnSslFlagProxyCidr)
 		if err != nil {
-			fmt.Printf("Converting IP list from CIDR error: %s\n", err.Error())
-			os.Exit(1)
+			fatal(err)
 		}
 		proxyHosts = append(proxyHosts, cidrHosts...)
 	}

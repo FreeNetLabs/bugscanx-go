@@ -5,7 +5,6 @@ import (
 	"crypto/tls"
 	"fmt"
 	"net"
-	"os"
 	"strings"
 	"time"
 
@@ -89,8 +88,7 @@ func scanSNI(c *queuescanner.Ctx, host string) {
 func runScanSNI(cmd *cobra.Command, args []string) {
 	lines, err := ReadLines(sniFlagFilename)
 	if err != nil {
-		fmt.Println(err.Error())
-		os.Exit(1)
+		fatal(err)
 	}
 
 	var domains []string

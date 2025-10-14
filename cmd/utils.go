@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"bufio"
+	"fmt"
 	"net"
 	"os"
 )
@@ -54,4 +55,9 @@ func IPsFromCIDR(cidr string) ([]string, error) {
 	}
 
 	return ips[1 : len(ips)-1], nil
+}
+
+func fatal(err error) {
+	fmt.Println(err.Error())
+	os.Exit(1)
 }
