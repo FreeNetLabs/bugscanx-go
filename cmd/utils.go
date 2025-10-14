@@ -6,7 +6,6 @@ import (
 	"os"
 )
 
-// ReadLines reads lines from a file, skipping empty lines.
 func ReadLines(filename string) ([]string, error) {
 	file, err := os.Open(filename)
 	if err != nil {
@@ -30,7 +29,6 @@ func ReadLines(filename string) ([]string, error) {
 	return lines, nil
 }
 
-// ipInc increments an IP address by one.
 func ipInc(ip net.IP) {
 	for j := len(ip) - 1; j >= 0; j-- {
 		ip[j]++
@@ -40,7 +38,6 @@ func ipInc(ip net.IP) {
 	}
 }
 
-// IPsFromCIDR generates IP addresses from a CIDR block, excluding network/broadcast addresses.
 func IPsFromCIDR(cidr string) ([]string, error) {
 	ip, ipnet, err := net.ParseCIDR(cidr)
 	if err != nil {
@@ -56,6 +53,5 @@ func IPsFromCIDR(cidr string) ([]string, error) {
 		return ips, nil
 	}
 
-	// Exclude network and broadcast addresses for ranges larger than /32
 	return ips[1 : len(ips)-1], nil
 }

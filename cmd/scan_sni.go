@@ -14,7 +14,6 @@ import (
 	"github.com/ayanrajpoot10/bugscanx-go/pkg/queuescanner"
 )
 
-// sniCmd performs SNI (Server Name Indication) scanning to verify SSL certificates.
 var sniCmd = &cobra.Command{
 	Use:     "sni",
 	Short:   "Scan server name indication (SNI) list from file.",
@@ -22,15 +21,13 @@ var sniCmd = &cobra.Command{
 	Run:     runScanSNI,
 }
 
-// SNI command flags
 var (
-	sniFlagFilename string // Input file containing domains for SNI scanning
-	sniFlagDeep     int    // Subdomain depth for domain processing
-	sniFlagTimeout  int    // TLS handshake timeout in seconds
-	sniFlagOutput   string // Output file for successful results
+	sniFlagFilename string
+	sniFlagDeep     int
+	sniFlagTimeout  int
+	sniFlagOutput   string
 )
 
-// init sets up the SNI command with flags and validation.
 func init() {
 	rootCmd.AddCommand(sniCmd)
 
@@ -42,12 +39,10 @@ func init() {
 	sniCmd.MarkFlagRequired("filename")
 }
 
-// scanSNI performs SNI scanning on a domain by establishing TLS connection.
 func scanSNI(c *queuescanner.Ctx, domain string) {
 	var conn net.Conn
 	var err error
 
-	// Retry logic for connection establishment
 	dialCount := 0
 	for {
 		dialCount++
@@ -55,7 +50,6 @@ func scanSNI(c *queuescanner.Ctx, domain string) {
 			return
 		}
 
-		// Attempt TCP connection to port 443
 		conn, err = net.DialTimeout("tcp", domain+":443", 3*time.Second)
 		if err != nil {
 			if e, ok := err.(net.Error); ok && e.Timeout() {
@@ -68,21 +62,18 @@ func scanSNI(c *queuescanner.Ctx, domain string) {
 		break
 	}
 
-	// Extract IP address from established connection
 	remoteAddr := conn.RemoteAddr()
 	ip, _, err := net.SplitHostPort(remoteAddr.String())
 	if err != nil {
 		ip = remoteAddr.String()
 	}
 
-	// Create TLS client connection with SNI
 	tlsConn := tls.Client(conn, &tls.Config{
 		ServerName:         domain,
 		InsecureSkipVerify: true,
 	})
 	defer tlsConn.Close()
 
-	// Perform TLS handshake with timeout
 	ctxHandshake, ctxHandshakeCancel := context.WithTimeout(context.Background(), time.Duration(sniFlagTimeout)*time.Second)
 	defer ctxHandshakeCancel()
 
@@ -91,15 +82,12 @@ func scanSNI(c *queuescanner.Ctx, domain string) {
 		return
 	}
 
-	// Format and report successful SNI scan result
 	formatted := fmt.Sprintf("%-16s %-20s", ip, domain)
 	c.ScanSuccess(formatted)
 	c.Log(formatted)
 }
 
-// runScanSNI orchestrates the SNI scanning process with domain processing.
 func runScanSNI(cmd *cobra.Command, args []string) {
-	// Read target domains from input file
 	lines, err := ReadLines(sniFlagFilename)
 	if err != nil {
 		fmt.Println(err.Error())
@@ -108,10 +96,8 @@ func runScanSNI(cmd *cobra.Command, args []string) {
 
 	var domains []string
 
-	// Process domains based on deep flag
 	for _, domain := range lines {
 		if sniFlagDeep > 0 {
-			// Extract top-level domain based on deep parameter
 			domainSplit := strings.Split(domain, ".")
 			if len(domainSplit) >= sniFlagDeep {
 				domain = strings.Join(domainSplit[len(domainSplit)-sniFlagDeep:], ".")
@@ -120,19 +106,11 @@ func runScanSNI(cmd *cobra.Command, args []string) {
 		domains = append(domains, domain)
 	}
 
-	// Print table headers for results
 	fmt.Printf("%-16s %-20s\n", "IP Address", "SNI")
 	fmt.Printf("%-16s %-20s\n", "----------", "----")
 
-	// Initialize queue scanner with configured thread count
 	queueScanner := queuescanner.NewQueueScanner(globalFlagThreads, scanSNI)
-
-	// Add all domains to the scan queue
 	queueScanner.Add(domains)
-
-	// Configure output file if specified
 	queueScanner.SetOutputFile(sniFlagOutput)
-
-	// Start the SNI scanning process
 	queueScanner.Start()
 }
