@@ -60,14 +60,14 @@ func init() {
 	cdnSslFlagMethod = strings.ToUpper(cdnSslFlagMethod)
 }
 
-func scanCdnSsl(c *queuescanner.Ctx, proxyHost string) {
+func scanCdnSsl(c *queuescanner.Ctx, host string) {
 	regexpIsIP := regexp.MustCompile(`\d+$`)
 	bug := cdnSslFlagBug
 	if bug == "" {
-		if regexpIsIP.MatchString(proxyHost) {
+		if regexpIsIP.MatchString(host) {
 			bug = cdnSslFlagTarget
 		} else {
-			bug = proxyHost
+			bug = host
 		}
 	}
 
@@ -78,7 +78,7 @@ func scanCdnSsl(c *queuescanner.Ctx, proxyHost string) {
 	var conn net.Conn
 	var err error
 
-	proxyHostPort := net.JoinHostPort(proxyHost, fmt.Sprintf("%d", cdnSslFlagProxyPort))
+	proxyHostPort := net.JoinHostPort(host, fmt.Sprintf("%d", cdnSslFlagProxyPort))
 	dialCount := 0
 
 	for {
@@ -90,7 +90,7 @@ func scanCdnSsl(c *queuescanner.Ctx, proxyHost string) {
 		conn, err = net.DialTimeout("tcp", proxyHostPort, 3*time.Second)
 		if err != nil {
 			if e, ok := err.(net.Error); ok && e.Timeout() {
-				c.LogReplacef("%s:%d - Dial Timeout", proxyHost, cdnSslFlagProxyPort)
+				c.LogReplacef("%s:%d - Dial Timeout", host, cdnSslFlagProxyPort)
 				continue
 			}
 			if opError, ok := err.(*net.OpError); ok {

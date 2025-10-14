@@ -38,7 +38,7 @@ func init() {
 	sniCmd.MarkFlagRequired("filename")
 }
 
-func scanSNI(c *queuescanner.Ctx, domain string) {
+func scanSNI(c *queuescanner.Ctx, host string) {
 	var conn net.Conn
 	var err error
 
@@ -49,10 +49,10 @@ func scanSNI(c *queuescanner.Ctx, domain string) {
 			return
 		}
 
-		conn, err = net.DialTimeout("tcp", domain+":443", 3*time.Second)
+		conn, err = net.DialTimeout("tcp", host+":443", 3*time.Second)
 		if err != nil {
 			if e, ok := err.(net.Error); ok && e.Timeout() {
-				c.LogReplacef("%s - Dial Timeout", domain)
+				c.LogReplacef("%s - Dial Timeout", host)
 				continue
 			}
 			return
@@ -68,7 +68,7 @@ func scanSNI(c *queuescanner.Ctx, domain string) {
 	}
 
 	tlsConn := tls.Client(conn, &tls.Config{
-		ServerName:         domain,
+		ServerName:         host,
 		InsecureSkipVerify: true,
 	})
 	defer tlsConn.Close()
@@ -81,7 +81,7 @@ func scanSNI(c *queuescanner.Ctx, domain string) {
 		return
 	}
 
-	formatted := fmt.Sprintf("%-16s %-20s", ip, domain)
+	formatted := fmt.Sprintf("%-16s %-20s", ip, host)
 	c.ScanSuccess(formatted)
 	c.Log(formatted)
 }

@@ -58,15 +58,15 @@ func init() {
 	proxyFlagMethod = strings.ToUpper(proxyFlagMethod)
 }
 
-func scanProxy(c *queuescanner.Ctx, proxyHost string) {
+func scanProxy(c *queuescanner.Ctx, host string) {
 
 	regexpIsIP := regexp.MustCompile(`\d+$`)
 	bug := proxyFlagBug
 	if bug == "" {
-		if regexpIsIP.MatchString(proxyHost) {
+		if regexpIsIP.MatchString(host) {
 			bug = proxyFlagTarget
 		} else {
-			bug = proxyHost
+			bug = host
 		}
 	}
 
@@ -78,7 +78,7 @@ func scanProxy(c *queuescanner.Ctx, proxyHost string) {
 	var err error
 	dnsErr := new(net.DNSError)
 
-	proxyHostPort := net.JoinHostPort(proxyHost, fmt.Sprintf("%d", proxyFlagProxyPort))
+	proxyHostPort := net.JoinHostPort(host, fmt.Sprintf("%d", proxyFlagProxyPort))
 	dialCount := 0
 
 	for {

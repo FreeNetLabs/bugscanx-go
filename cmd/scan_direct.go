@@ -73,13 +73,13 @@ func extractHTTPHeaders(response string) (statusCode int, server string, locatio
 	return statusCode, server, location
 }
 
-func scanDirect(c *queuescanner.Ctx, domain string) {
+func scanDirect(c *queuescanner.Ctx, host string) {
 	port := "80"
 	if directFlagHttps {
 		port = "443"
 	}
 
-	ips, err := net.DefaultResolver.LookupIP(context.Background(), "ip4", domain)
+	ips, err := net.DefaultResolver.LookupIP(context.Background(), "ip4", host)
 	if err != nil || len(ips) == 0 {
 		return
 	}
@@ -97,7 +97,7 @@ func scanDirect(c *queuescanner.Ctx, domain string) {
 	if directFlagHttps {
 		conn, err = tls.DialWithDialer(dialer, network, address, &tls.Config{
 			InsecureSkipVerify: true,
-			ServerName:         domain,
+			ServerName:         host,
 		})
 	} else {
 		conn, err = dialer.Dial(network, address)
@@ -114,7 +114,7 @@ func scanDirect(c *queuescanner.Ctx, domain string) {
 		method = "HEAD"
 	}
 
-	httpRequest := fmt.Sprintf("%s / HTTP/1.1\r\nHost: %s\r\nUser-Agent: bugscanx-go/1.0\r\nConnection: close\r\n\r\n", method, domain)
+	httpRequest := fmt.Sprintf("%s / HTTP/1.1\r\nHost: %s\r\nUser-Agent: bugscanx-go/1.0\r\nConnection: close\r\n\r\n", method, host)
 
 	_, err = conn.Write([]byte(httpRequest))
 	if err != nil {
@@ -134,7 +134,7 @@ func scanDirect(c *queuescanner.Ctx, domain string) {
 		return
 	}
 
-	formatted := fmt.Sprintf("%-15s  %-3d   %-16s    %s", ipStr, statusCode, server, domain)
+	formatted := fmt.Sprintf("%-15s  %-3d   %-16s    %s", ipStr, statusCode, server, host)
 
 	c.ScanSuccess(formatted)
 	c.Log(formatted)
