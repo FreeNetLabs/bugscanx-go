@@ -33,15 +33,14 @@ func nowNano() int64 {
 	return time.Now().UnixNano()
 }
 
-func formatSeconds(sec int) string {
-	h := sec / 3600
-	m := (sec % 3600) / 60
-	s := sec % 60
-	if h > 0 {
-		return fmt.Sprintf("%d:%02d:%02d", h, m, s)
-	}
-	return fmt.Sprintf("%d:%02d", m, s)
+func formatETA(seconds float64) string {
+    d := time.Duration(seconds * float64(time.Second))
+    if d < 0 {
+        return "--"
+    }
+    return d.Truncate(time.Second).String()
 }
+
 
 func hideCursor() {
 	fmt.Print("\033[?25l")
@@ -70,7 +69,7 @@ func (c *Ctx) LogReplace(currentItem any) {
 		avgPerItem := elapsed / float64(scanComplete)
 		remaining := float64(len(c.dataList) - int(scanComplete))
 		eta := avgPerItem * remaining
-		etaStr = formatSeconds(int(eta))
+		etaStr = formatETA(eta)
 	}
 	s := fmt.Sprintf(
 		"%.2f%% - C: %d / %d - S: %d - ETA: %s",
