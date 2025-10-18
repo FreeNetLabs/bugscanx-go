@@ -34,7 +34,7 @@ func init() {
 	pingCmd.MarkFlagRequired("filename")
 }
 
-func pingHost(ctx *queuescanner.Ctx, host string) {
+func pingHost(c *queuescanner.Ctx, host string) {
 	conn, err := net.DialTimeout("tcp", net.JoinHostPort(host, fmt.Sprintf("%d", pingFlagPort)), time.Duration(pingFlagTimeout)*time.Second)
 	if err != nil {
 		return
@@ -48,8 +48,8 @@ func pingHost(ctx *queuescanner.Ctx, host string) {
 	}
 
 	formatted := fmt.Sprintf("%-16s %-20s", ip, host)
-	ctx.ScanSuccess(formatted)
-	ctx.Log(formatted)
+	c.ScanSuccess(formatted)
+	c.Log(formatted)
 }
 
 func pingRun(cmd *cobra.Command, args []string) {
