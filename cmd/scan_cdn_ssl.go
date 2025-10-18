@@ -17,9 +17,9 @@ import (
 )
 
 var cdnSslCmd = &cobra.Command{
-	Use:     "cdn-ssl",
-	Short:   "Scan using CDN SSL proxy with payload injection to SSL targets.",
-	Run:     runScanCdnSsl,
+	Use:   "cdn-ssl",
+	Short: "Scan using CDN SSL proxy with payload injection to SSL targets.",
+	Run:   runScanCdnSsl,
 }
 
 var (
@@ -189,7 +189,7 @@ func runScanCdnSsl(cmd *cobra.Command, args []string) {
 	}
 
 	if cdnSslFlagProxyHostFilename != "" {
-		lines, err := ReadLines(cdnSslFlagProxyHostFilename)
+		lines, err := ReadFile(cdnSslFlagProxyHostFilename)
 		if err != nil {
 			fatal(err)
 		}

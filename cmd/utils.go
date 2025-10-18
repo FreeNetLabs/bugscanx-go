@@ -7,7 +7,7 @@ import (
 	"os"
 )
 
-func ReadLines(filename string) ([]string, error) {
+func ReadFile(filename string) ([]string, error) {
 	file, err := os.Open(filename)
 	if err != nil {
 		return nil, err

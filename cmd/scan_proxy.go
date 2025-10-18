@@ -17,9 +17,9 @@ import (
 )
 
 var proxyCmd = &cobra.Command{
-	Use:     "proxy",
-	Short:   "Scan using a proxy with payload to a target.",
-	Run:     runScanProxy,
+	Use:   "proxy",
+	Short: "Scan using a proxy with payload to a target.",
+	Run:   runScanProxy,
 }
 
 var (
@@ -181,7 +181,7 @@ func runScanProxy(cmd *cobra.Command, args []string) {
 	}
 
 	if proxyFlagProxyHostFilename != "" {
-		lines, err := ReadLines(proxyFlagProxyHostFilename)
+		lines, err := ReadFile(proxyFlagProxyHostFilename)
 		if err != nil {
 			fatal(err)
 		}

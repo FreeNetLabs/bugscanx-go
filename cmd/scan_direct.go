@@ -140,7 +140,7 @@ func scanDirect(c *queuescanner.Ctx, host string) {
 }
 
 func scanDirectRun(cmd *cobra.Command, args []string) {
-	hosts, err := ReadLines(directFlagFilename)
+	hosts, err := ReadFile(directFlagFilename)
 	if err != nil {
 		fatal(err)
 	}

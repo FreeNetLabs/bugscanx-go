@@ -11,9 +11,9 @@ import (
 )
 
 var pingCmd = &cobra.Command{
-	Use:     "ping",
-	Short:   "Scan hosts using TCP ping.",
-	Run:     pingRun,
+	Use:   "ping",
+	Short: "Scan hosts using TCP ping.",
+	Run:   pingRun,
 }
 
 var (
@@ -53,7 +53,7 @@ func pingHost(ctx *queuescanner.Ctx, host string) {
 }
 
 func pingRun(cmd *cobra.Command, args []string) {
-	hosts, err := ReadLines(pingFlagFilename)
+	hosts, err := ReadFile(pingFlagFilename)
 	if err != nil {
 		fatal(err)
 	}

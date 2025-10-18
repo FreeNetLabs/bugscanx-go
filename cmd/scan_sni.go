@@ -14,9 +14,9 @@ import (
 )
 
 var sniCmd = &cobra.Command{
-	Use:     "sni",
-	Short:   "Scan server name indication (SNI) list from file.",
-	Run:     runScanSNI,
+	Use:   "sni",
+	Short: "Scan server name indication (SNI) list from file.",
+	Run:   runScanSNI,
 }
 
 var (
@@ -86,7 +86,7 @@ func scanSNI(c *queuescanner.Ctx, host string) {
 }
 
 func runScanSNI(cmd *cobra.Command, args []string) {
-	lines, err := ReadLines(sniFlagFilename)
+	lines, err := ReadFile(sniFlagFilename)
 	if err != nil {
 		fatal(err)
 	}
