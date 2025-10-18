@@ -3,10 +3,8 @@ package cmd
 import (
 	"bufio"
 	"context"
-	"errors"
 	"fmt"
 	"net"
-	"os"
 	"regexp"
 	"strings"
 	"time"
@@ -72,39 +70,13 @@ func scanProxy(c *queuescanner.Ctx, host string) {
 		bug = proxyFlagTarget
 	}
 
-	var conn net.Conn
-	var err error
-	dnsErr := new(net.DNSError)
-
 	proxyHostPort := net.JoinHostPort(host, fmt.Sprintf("%d", proxyFlagProxyPort))
-	dialCount := 0
 
-	for {
-		dialCount++
-		if dialCount > 3 {
-			return
-		}
-
-		conn, err = net.DialTimeout("tcp", proxyHostPort, 3*time.Second)
-		if err != nil {
-			if errors.As(err, &dnsErr) {
-				return
-			}
-			if e, ok := err.(net.Error); ok && e.Timeout() {
-				continue
-			}
-			if opError, ok := err.(*net.OpError); ok {
-				if syscalErr, ok := opError.Err.(*os.SyscallError); ok {
-					if syscalErr.Err.Error() == "network is unreachable" {
-						return
-					}
-				}
-			}
-			return
-		}
-		defer conn.Close()
-		break
+	conn, err := net.DialTimeout("tcp", proxyHostPort, 3*time.Second)
+	if err != nil {
+		return
 	}
+	defer conn.Close()
 
 	ctxResultTimeout, ctxResultTimeoutCancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer ctxResultTimeoutCancel()

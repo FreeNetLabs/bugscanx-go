@@ -6,7 +6,6 @@ import (
 	"crypto/tls"
 	"fmt"
 	"net"
-	"os"
 	"regexp"
 	"strings"
 	"time"
@@ -73,36 +72,13 @@ func scanCdnSsl(c *queuescanner.Ctx, host string) {
 		bug = cdnSslFlagTarget
 	}
 
-	var conn net.Conn
-	var err error
-
 	proxyHostPort := net.JoinHostPort(host, fmt.Sprintf("%d", cdnSslFlagProxyPort))
-	dialCount := 0
 
-	for {
-		dialCount++
-		if dialCount > 3 {
-			return
-		}
-
-		conn, err = net.DialTimeout("tcp", proxyHostPort, 3*time.Second)
-		if err != nil {
-			if e, ok := err.(net.Error); ok && e.Timeout() {
-				c.LogReplacef("%s:%d - Dial Timeout", host, cdnSslFlagProxyPort)
-				continue
-			}
-			if opError, ok := err.(*net.OpError); ok {
-				if syscalErr, ok := opError.Err.(*os.SyscallError); ok {
-					if syscalErr.Err.Error() == "network is unreachable" {
-						return
-					}
-				}
-			}
-			return
-		}
-		defer conn.Close()
-		break
+	conn, err := net.DialTimeout("tcp", proxyHostPort, 3*time.Second)
+	if err != nil {
+		return
 	}
+	defer conn.Close()
 
 	tlsConn := tls.Client(conn, &tls.Config{
 		ServerName:         bug,

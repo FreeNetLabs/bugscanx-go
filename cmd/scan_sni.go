@@ -38,27 +38,11 @@ func init() {
 }
 
 func scanSNI(c *queuescanner.Ctx, host string) {
-	var conn net.Conn
-	var err error
-
-	dialCount := 0
-	for {
-		dialCount++
-		if dialCount > 3 {
-			return
-		}
-
-		conn, err = net.DialTimeout("tcp", host+":443", 3*time.Second)
-		if err != nil {
-			if e, ok := err.(net.Error); ok && e.Timeout() {
-				c.LogReplacef("%s - Dial Timeout", host)
-				continue
-			}
-			return
-		}
-		defer conn.Close()
-		break
+	conn, err := net.DialTimeout("tcp", host+":443", 3*time.Second)
+	if err != nil {
+		return
 	}
+	defer conn.Close()
 
 	remoteAddr := conn.RemoteAddr()
 	ip, _, err := net.SplitHostPort(remoteAddr.String())
