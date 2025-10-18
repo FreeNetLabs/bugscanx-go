@@ -49,9 +49,7 @@ func init() {
 	proxyCmd.Flags().StringVar(&proxyFlagTarget, "target", "", "target server (response must be 101)")
 	proxyCmd.Flags().StringVar(&proxyFlagPath, "path", "/", "request path")
 	proxyCmd.Flags().StringVar(&proxyFlagProtocol, "protocol", "HTTP/1.1", "request protocol")
-	proxyCmd.Flags().StringVar(
-		&proxyFlagPayload, "payload", "[method] [path] [protocol][crlf]Host: [host][crlf]Upgrade: websocket[crlf][crlf]", "request payload for sending throught proxy",
-	)
+	proxyCmd.Flags().StringVar(&proxyFlagPayload, "payload", "[method] [path] [protocol][crlf]Host: [host][crlf]Upgrade: websocket[crlf][crlf]", "request payload for sending throught proxy")
 	proxyCmd.Flags().IntVar(&proxyFlagTimeout, "timeout", 3, "handshake timeout")
 	proxyCmd.Flags().StringVarP(&proxyFlagOutput, "output", "o", "", "output result")
 
