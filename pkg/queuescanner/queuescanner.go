@@ -11,12 +11,12 @@ import (
 )
 
 type Ctx struct {
-	ScanComplete     int64
-	ScanSuccessCount int64
-	dataList         []string
-	mx               sync.Mutex
-	OutputFile       string
-	startTime        int64
+	ScanComplete int64
+	SuccessCount int64
+	dataList     []string
+	mx           sync.Mutex
+	OutputFile   string
+	startTime    int64
 }
 
 type QueueScannerScanFunc func(c *Ctx, host string)
@@ -34,13 +34,12 @@ func nowNano() int64 {
 }
 
 func formatETA(seconds float64) string {
-    d := time.Duration(seconds * float64(time.Second))
-    if d < 0 {
-        return "--"
-    }
-    return d.Truncate(time.Second).String()
+	d := time.Duration(seconds * float64(time.Second))
+	if d < 0 {
+		return "--"
+	}
+	return d.Truncate(time.Second).String()
 }
-
 
 func hideCursor() {
 	fmt.Print("\033[?25l")
@@ -59,7 +58,7 @@ func (c *Ctx) Logf(f string, a ...any) {
 }
 
 func (c *Ctx) LogReplace(currentItem any) {
-	scanSuccess := atomic.LoadInt64(&c.ScanSuccessCount)
+	scanSuccess := atomic.LoadInt64(&c.SuccessCount)
 	scanComplete := atomic.LoadInt64(&c.ScanComplete)
 	scanCompletePercentage := float64(scanComplete) / float64(len(c.dataList)) * 100
 
@@ -105,7 +104,7 @@ func (c *Ctx) ScanSuccess(a any) {
 		c.mx.Unlock()
 	}
 
-	atomic.AddInt64(&c.ScanSuccessCount, 1)
+	atomic.AddInt64(&c.SuccessCount, 1)
 }
 
 func NewQueueScanner(threads int, scanFunc QueueScannerScanFunc) *QueueScanner {
