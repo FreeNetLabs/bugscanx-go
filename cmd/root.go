@@ -9,8 +9,10 @@ var rootCmd = &cobra.Command{
 	Long: "A bugscanner-go fork.",
 }
 
-var globalFlagThreads int
-var globalFlagPrintInterval float64
+var (
+	globalFlagThreads	    int
+	globalFlagPrintInterval float64
+)
 
 func Execute() {
 	cobra.CheckErr(rootCmd.Execute())
