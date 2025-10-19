@@ -11,12 +11,14 @@ import (
 )
 
 type Ctx struct {
-	ScanComplete int64
-	SuccessCount int64
-	dataList     []string
-	mx           sync.Mutex
-	OutputFile   string
-	startTime    int64
+	ScanComplete  int64
+	SuccessCount  int64
+	dataList      []string
+	mx            sync.Mutex
+	OutputFile    string
+	startTime     int64
+	lastPrintTime int64
+	printInterval int64 // in nanoseconds
 }
 
 type QueueScannerScanFunc func(c *Ctx, host string)
@@ -58,6 +60,14 @@ func (c *Ctx) Logf(f string, a ...any) {
 }
 
 func (c *Ctx) LogReplace(currentItem any) {
+	if c.printInterval > 0 {
+		now := nowNano()
+		if now-atomic.LoadInt64(&c.lastPrintTime) < c.printInterval {
+			return
+		}
+		atomic.StoreInt64(&c.lastPrintTime, now)
+	}
+
 	scanSuccess := atomic.LoadInt64(&c.SuccessCount)
 	scanComplete := atomic.LoadInt64(&c.ScanComplete)
 	scanCompletePercentage := float64(scanComplete) / float64(len(c.dataList)) * 100
@@ -126,6 +136,10 @@ func (s *QueueScanner) SetOutputFile(filename string) {
 	s.ctx.OutputFile = filename
 }
 
+func (s *QueueScanner) SetPrintInterval(seconds float64) {
+	s.ctx.printInterval = int64(seconds * 1e9)
+}
+
 func (s *QueueScanner) Add(dataList []string) {
 	s.ctx.dataList = dataList
 }
@@ -141,6 +155,10 @@ func (s *QueueScanner) Start() {
 	close(s.queue)
 
 	s.wg.Wait()
+
+	atomic.StoreInt64(&s.ctx.lastPrintTime, 0)
+	s.ctx.LogReplace(nil)
+	fmt.Println()
 }
 
 func (s *QueueScanner) run() {

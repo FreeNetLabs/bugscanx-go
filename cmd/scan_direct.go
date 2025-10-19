@@ -15,9 +15,9 @@ import (
 )
 
 var directCmd = &cobra.Command{
-	Use:     "direct",
-	Short:   "Scan using direct connection to targets.",
-	Run:     scanDirectRun,
+	Use:   "direct",
+	Short: "Scan using direct connection to targets.",
+	Run:   scanDirectRun,
 }
 
 var (
@@ -151,5 +151,6 @@ func scanDirectRun(cmd *cobra.Command, args []string) {
 	queueScanner := queuescanner.NewQueueScanner(globalFlagThreads, scanDirect)
 	queueScanner.Add(hosts)
 	queueScanner.SetOutputFile(directFlagOutput)
+	queueScanner.SetPrintInterval(globalFlagPrintInterval)
 	queueScanner.Start()
 }

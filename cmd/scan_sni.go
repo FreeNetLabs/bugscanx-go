@@ -93,5 +93,6 @@ func runScanSNI(cmd *cobra.Command, args []string) {
 	queueScanner := queuescanner.NewQueueScanner(globalFlagThreads, scanSNI)
 	queueScanner.Add(domains)
 	queueScanner.SetOutputFile(sniFlagOutput)
+	queueScanner.SetPrintInterval(globalFlagPrintInterval)
 	queueScanner.Start()
 }
