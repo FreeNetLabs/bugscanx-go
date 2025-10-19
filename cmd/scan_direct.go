@@ -22,7 +22,7 @@ var directCmd = &cobra.Command{
 
 var (
 	directFlagFilename       string
-	directFlagHttps          bool
+	directFlagPort           string
 	directFlagOutput         string
 	directFlagHideLocation   string
 	directFlagMethod         string
@@ -34,9 +34,9 @@ func init() {
 	rootCmd.AddCommand(directCmd)
 
 	directCmd.Flags().StringVarP(&directFlagFilename, "filename", "f", "", "domain list filename")
+	directCmd.Flags().StringVarP(&directFlagPort, "port", "p", "80", "port to scan (default: 80)")
 	directCmd.Flags().StringVarP(&directFlagOutput, "output", "o", "", "output result")
 	directCmd.Flags().StringVarP(&directFlagMethod, "method", "m", "HEAD", "HTTP method to use")
-	directCmd.Flags().BoolVar(&directFlagHttps, "https", false, "use https")
 	directCmd.Flags().StringVar(&directFlagHideLocation, "skip", "https://jio.com/BalanceExhaust", "skip results with this Location header")
 	directCmd.Flags().IntVar(&directFlagTimeoutConnect, "timeout-connect", 5, "TCP connect timeout in seconds")
 	directCmd.Flags().IntVar(&directFlagTimeoutRequest, "timeout-request", 10, "Overall request timeout in seconds")
@@ -73,9 +73,19 @@ func extractHTTPHeaders(response string) (statusCode int, server string, locatio
 }
 
 func scanDirect(c *queuescanner.Ctx, host string) {
-	port := "80"
-	if directFlagHttps {
-		port = "443"
+	port := directFlagPort
+	if port == "" {
+		port = "80"
+	}
+
+	// Determine if we should use TLS based on common HTTPS ports
+	useTLS := false
+	commonHTTPSPorts := []string{"443", "8443", "9443", "10443"}
+	for _, httpsPort := range commonHTTPSPorts {
+		if port == httpsPort {
+			useTLS = true
+			break
+		}
 	}
 
 	ips, err := net.DefaultResolver.LookupIP(context.Background(), "ip4", host)
@@ -93,7 +103,7 @@ func scanDirect(c *queuescanner.Ctx, host string) {
 	}
 
 	var conn net.Conn
-	if directFlagHttps {
+	if useTLS {
 		conn, err = tls.DialWithDialer(dialer, network, address, &tls.Config{
 			InsecureSkipVerify: true,
 			ServerName:         host,
