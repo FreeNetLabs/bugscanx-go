@@ -42,7 +42,20 @@ snapshot:
 
 changelog:
   sort: asc
+  use: github
   filters:
     exclude:
       - '^docs:'
       - '^test:'
+  groups:
+    - title: Features
+      regexp: '^.*?feat(\([[:word:]]+\))??!?:.+$'
+      order: 0
+    - title: 'Bug Fixes'
+      regexp: '^.*?fix(\([[:word:]]+\))??!?:.+$'
+      order: 1
+    - title: 'Improvements'
+      regexp: '^.*?(refactor|perf|improvement)(\([[:word:]]+\))??!?:.+$'
+      order: 2
+    - title: Others
+      order: 999
