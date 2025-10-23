@@ -30,8 +30,6 @@ func init() {
 	pingCmd.Flags().IntVar(&pingFlagTimeout, "timeout", 2, "timeout in seconds")
 	pingCmd.Flags().StringVarP(&pingFlagOutput, "output", "o", "", "output result")
 	pingCmd.Flags().IntVar(&pingFlagPort, "port", 80, "port to use")
-
-	pingCmd.MarkFlagRequired("filename")
 }
 
 func pingHost(c *queuescanner.Ctx, host string) {

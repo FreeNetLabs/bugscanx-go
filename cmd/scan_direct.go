@@ -42,8 +42,6 @@ func init() {
 	directCmd.Flags().IntVar(&directFlagTimeoutConnect, "timeout-connect", 5, "TCP connect timeout in seconds")
 	directCmd.Flags().IntVar(&directFlagTimeoutRequest, "timeout-request", 10, "Overall request timeout in seconds")
 	directCmd.Flags().IntVar(&directFlagTimeoutDNS, "timeout-dns", 5, "DNS lookup timeout in seconds")
-
-	directCmd.MarkFlagRequired("filename")
 }
 
 func parsePorts(portSpec string) ([]string, error) {

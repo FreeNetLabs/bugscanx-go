@@ -33,8 +33,6 @@ func init() {
 	sniCmd.Flags().IntVarP(&sniFlagDeep, "deep", "d", 0, "deep subdomain")
 	sniCmd.Flags().IntVar(&sniFlagTimeout, "timeout", 3, "handshake timeout")
 	sniCmd.Flags().StringVarP(&sniFlagOutput, "output", "o", "", "output result")
-
-	sniCmd.MarkFlagRequired("filename")
 }
 
 func scanSNI(c *queuescanner.Ctx, host string) {

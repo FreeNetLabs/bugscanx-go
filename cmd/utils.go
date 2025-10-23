@@ -3,19 +3,36 @@ package cmd
 import (
 	"bufio"
 	"fmt"
+	"io"
 	"net"
 	"os"
 )
 
 func ReadFile(filename string) ([]string, error) {
-	file, err := os.Open(filename)
-	if err != nil {
-		return nil, err
+	var reader io.Reader
+
+	if filename == "" || filename == "-" {
+		stat, err := os.Stdin.Stat()
+		if err != nil {
+			return nil, fmt.Errorf("error checking stdin: %w", err)
+		}
+
+		if (stat.Mode() & os.ModeCharDevice) == 0 {
+			reader = os.Stdin
+		} else {
+			return nil, fmt.Errorf("no input provided: use -f flag or pipe data via stdin")
+		}
+	} else {
+		file, err := os.Open(filename)
+		if err != nil {
+			return nil, err
+		}
+		defer file.Close()
+		reader = file
 	}
-	defer file.Close()
 
 	var lines []string
-	scanner := bufio.NewScanner(file)
+	scanner := bufio.NewScanner(reader)
 	for scanner.Scan() {
 		line := scanner.Text()
 		if line != "" {
