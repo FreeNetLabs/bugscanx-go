@@ -126,6 +126,7 @@ func NewQueueScanner(threads int, scanFunc QueueScannerScanFunc) *QueueScanner {
 	}
 
 	for i := 0; i < t.threads; i++ {
+		t.wg.Add(1)
 		go t.run()
 	}
 
@@ -162,7 +163,6 @@ func (s *QueueScanner) Start() {
 }
 
 func (s *QueueScanner) run() {
-	s.wg.Add(1)
 	defer s.wg.Done()
 
 	for {
