@@ -22,5 +22,5 @@ func init() {
 	rootCmd.PersistentFlags().IntVarP(&globalFlagThreads, "threads", "t", 64, "total threads to use")
 	rootCmd.PersistentFlags().Float64Var(&globalFlagPrintInterval, "print-interval", 1.0, "progress print interval in seconds")
 	rootCmd.CompletionOptions.DisableDefaultCmd = true
-	rootCmd.SetHelpCommand(&cobra.Command{Use: "no-help", Hidden: true})
+	rootCmd.SetHelpCommand(&cobra.Command{Hidden: true})
 }
