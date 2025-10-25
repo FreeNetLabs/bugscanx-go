@@ -3,8 +3,10 @@ package queuescanner
 import (
 	"fmt"
 	"os"
+	"os/signal"
 	"sync"
 	"sync/atomic"
+	"syscall"
 	"time"
 
 	"golang.org/x/term"
@@ -135,6 +137,18 @@ func (qs *QueueScanner) Start() {
 	qs.ctx.startTime = nowNano()
 	hideCursor()
 	defer showCursor()
+
+	sigChan := make(chan os.Signal, 1)
+	signal.Notify(sigChan, os.Interrupt, syscall.SIGTERM)
+
+	go func() {
+		<-sigChan
+		showCursor()
+		atomic.StoreInt64(&qs.ctx.lastStatTime, 0)
+		qs.ctx.LogStat()
+		fmt.Println()
+		os.Exit(0)
+	}()
 
 	for _, host := range qs.ctx.hostList {
 		qs.queue <- host
