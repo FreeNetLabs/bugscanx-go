@@ -5,7 +5,7 @@ import (
 	"context"
 	"fmt"
 	"net"
-	"regexp"
+	"strconv"
 	"strings"
 	"time"
 
@@ -21,7 +21,7 @@ var proxyCmd = &cobra.Command{
 }
 
 var (
-	proxyFlagProxyCidr         string
+	proxyFlagProxyCIDR         string
 	proxyFlagProxyHost         string
 	proxyFlagProxyHostFilename string
 	proxyFlagProxyPort         int
@@ -38,7 +38,7 @@ var (
 func init() {
 	rootCmd.AddCommand(proxyCmd)
 
-	proxyCmd.Flags().StringVarP(&proxyFlagProxyCidr, "cidr", "c", "", "cidr proxy to scan e.g. 104.16.0.0/24")
+	proxyCmd.Flags().StringVarP(&proxyFlagProxyCIDR, "cidr", "c", "", "cidr proxy to scan e.g. 104.16.0.0/24")
 	proxyCmd.Flags().StringVar(&proxyFlagProxyHost, "proxy", "", "proxy without port")
 	proxyCmd.Flags().StringVarP(&proxyFlagProxyHostFilename, "filename", "f", "", "proxy filename without port")
 	proxyCmd.Flags().IntVarP(&proxyFlagProxyPort, "port", "p", 80, "proxy port")
@@ -50,16 +50,13 @@ func init() {
 	proxyCmd.Flags().StringVar(&proxyFlagPayload, "payload", "[method] [path] [protocol][crlf]Host: [host][crlf]Upgrade: websocket[crlf][crlf]", "request payload for sending throught proxy")
 	proxyCmd.Flags().IntVar(&proxyFlagTimeout, "timeout", 3, "handshake timeout")
 	proxyCmd.Flags().StringVarP(&proxyFlagOutput, "output", "o", "", "output result")
-
-	proxyFlagMethod = strings.ToUpper(proxyFlagMethod)
 }
 
-func scanProxy(c *queuescanner.Ctx, host string) {
+func scanProxy(ctx *queuescanner.Ctx, host string) {
 
-	regexpIsIP := regexp.MustCompile(`\d+$`)
 	bug := proxyFlagBug
 	if bug == "" {
-		if regexpIsIP.MatchString(host) {
+		if ipRegex.MatchString(host) {
 			bug = proxyFlagTarget
 		} else {
 			bug = host
@@ -70,18 +67,18 @@ func scanProxy(c *queuescanner.Ctx, host string) {
 		bug = proxyFlagTarget
 	}
 
-	proxyHostPort := net.JoinHostPort(host, fmt.Sprintf("%d", proxyFlagProxyPort))
+	address := net.JoinHostPort(host, strconv.Itoa(proxyFlagProxyPort))
 
-	conn, err := net.DialTimeout("tcp", proxyHostPort, 3*time.Second)
+	conn, err := net.DialTimeout("tcp", address, 3*time.Second)
 	if err != nil {
 		return
 	}
 	defer conn.Close()
 
-	ctxResultTimeout, ctxResultTimeoutCancel := context.WithTimeout(context.Background(), 10*time.Second)
-	defer ctxResultTimeoutCancel()
+	timeoutCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
 
-	chanResult := make(chan bool)
+	resultCh := make(chan bool)
 
 	go func() {
 		payload := getScanProxyPayloadDecoded(bug)
@@ -90,13 +87,13 @@ func scanProxy(c *queuescanner.Ctx, host string) {
 
 		_, err = conn.Write([]byte(payload))
 		if err != nil {
-			chanResult <- false
+			resultCh <- false
 			return
 		}
 
 		scanner := bufio.NewScanner(conn)
 		isPrefix := true
-		responseLines := make([]string, 0)
+		responseLines := []string{}
 
 		for scanner.Scan() {
 			line := scanner.Text()
@@ -110,31 +107,31 @@ func scanProxy(c *queuescanner.Ctx, host string) {
 		}
 
 		if len(responseLines) == 0 {
-			chanResult <- false
+			resultCh <- false
 			return
 		}
 
 		if strings.Contains(responseLines[0], " 302 ") {
-			chanResult <- true
+			resultCh <- true
 			return
 		}
 
-		resultString := fmt.Sprintf("%-32s %s", proxyHostPort, strings.Join(responseLines, " -- "))
-		c.ScanSuccess(resultString)
-		c.Log(resultString)
+		resultString := fmt.Sprintf("%-32s %s", address, strings.Join(responseLines, " -- "))
+		ctx.ScanSuccess(resultString)
+		ctx.Log(resultString)
 
-		chanResult <- true
+		resultCh <- true
 	}()
 
 	select {
-	case <-chanResult:
-	case <-ctxResultTimeout.Done():
+	case <-resultCh:
+	case <-timeoutCtx.Done():
 	}
 }
 
 func getScanProxyPayloadDecoded(bug ...string) string {
 	payload := proxyFlagPayload
-	payload = strings.ReplaceAll(payload, "[method]", proxyFlagMethod)
+	payload = strings.ReplaceAll(payload, "[method]", strings.ToUpper(proxyFlagMethod))
 	payload = strings.ReplaceAll(payload, "[path]", proxyFlagPath)
 	payload = strings.ReplaceAll(payload, "[protocol]", proxyFlagProtocol)
 	if len(bug) > 0 {
@@ -158,18 +155,16 @@ func runScanProxy(cmd *cobra.Command, args []string) {
 		proxyHosts = append(proxyHosts, lines...)
 	}
 
-	if proxyFlagProxyCidr != "" {
-		cidrHosts, err := IPsFromCIDR(proxyFlagProxyCidr)
+	if proxyFlagProxyCIDR != "" {
+		cidrHosts, err := IPsFromCIDR(proxyFlagProxyCIDR)
 		if err != nil {
 			fatal(err)
 		}
 		proxyHosts = append(proxyHosts, cidrHosts...)
 	}
 
-	queueScanner := queuescanner.NewQueueScanner(globalFlagThreads, scanProxy)
-	queueScanner.Add(proxyHosts)
+	qs := queuescanner.New(globalFlagThreads, scanProxy)
 	fmt.Printf("%s\n\n", getScanProxyPayloadDecoded())
-	queueScanner.SetOutputFile(proxyFlagOutput)
-	queueScanner.SetStatInterval(globalFlagStatInterval)
-	queueScanner.Start()
+	qs.SetOptions(proxyHosts, proxyFlagOutput, globalFlagStatInterval)
+	qs.Start()
 }

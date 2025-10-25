@@ -13,8 +13,8 @@ import (
 type Ctx struct {
 	ScanComplete int64
 	SuccessCount int64
-	dataList     []string
-	mx           sync.Mutex
+	hostList     []string
+	mu           sync.Mutex
 	OutputFile   string
 	startTime    int64
 	lastStatTime int64
@@ -51,129 +51,115 @@ func showCursor() {
 	fmt.Print("\033[?25h")
 }
 
-func (c *Ctx) Log(a ...any) {
+func (ctx *Ctx) Log(a ...any) {
 	fmt.Printf("\r\033[2K%s\n", fmt.Sprint(a...))
 }
 
-func (c *Ctx) Logf(f string, a ...any) {
-	c.Log(fmt.Sprintf(f, a...))
-}
-
-func (c *Ctx) LogStat(currentItem any) {
-	if c.statInterval > 0 {
+func (ctx *Ctx) LogStat() {
+	if ctx.statInterval > 0 {
 		now := nowNano()
-		if now-atomic.LoadInt64(&c.lastStatTime) < c.statInterval {
+		if now-atomic.LoadInt64(&ctx.lastStatTime) < ctx.statInterval {
 			return
 		}
-		atomic.StoreInt64(&c.lastStatTime, now)
+		atomic.StoreInt64(&ctx.lastStatTime, now)
 	}
 
-	scanSuccess := atomic.LoadInt64(&c.SuccessCount)
-	scanComplete := atomic.LoadInt64(&c.ScanComplete)
-	scanCompletePercentage := float64(scanComplete) / float64(len(c.dataList)) * 100
+	scanSuccess := atomic.LoadInt64(&ctx.SuccessCount)
+	scanComplete := atomic.LoadInt64(&ctx.ScanComplete)
+	scanCompletePercentage := float64(scanComplete) / float64(len(ctx.hostList)) * 100
 
-	etaStr := "--"
-	if scanComplete > 0 && len(c.dataList) > 0 {
-		elapsed := float64(nowNano()-c.startTime) / 1e9 // seconds
+	eta := "--"
+	if scanComplete > 0 && len(ctx.hostList) > 0 {
+		elapsed := float64(nowNano()-ctx.startTime) / 1e9 // seconds
 		avgPerItem := elapsed / float64(scanComplete)
-		remaining := float64(len(c.dataList) - int(scanComplete))
-		eta := avgPerItem * remaining
-		etaStr = formatETA(eta)
+		remaining := float64(len(ctx.hostList) - int(scanComplete))
+		etaSec := avgPerItem * remaining
+		eta = formatETA(etaSec)
 	}
-	s := fmt.Sprintf(
+	status := fmt.Sprintf(
 		"%.2f%% - C: %d / %d - S: %d - ETA: %s",
 		scanCompletePercentage,
 		scanComplete,
-		len(c.dataList),
+		len(ctx.hostList),
 		scanSuccess,
-		etaStr,
+		eta,
 	)
 
 	if termWidth, _, err := term.GetSize(int(os.Stdout.Fd())); err == nil {
-		w := termWidth - 3
-		if len(s) >= w {
-			s = s[:w] + "..."
+		width := termWidth - 3
+		if len(status) >= width {
+			status = status[:width] + "..."
 		}
 	}
 
-	fmt.Print("\r\033[2K", s, "\r")
+	fmt.Print("\r\033[2K", status, "\r")
 }
 
-func (c *Ctx) LogStatf(f string, a ...any) {
-	c.LogStat(fmt.Sprintf(f, a...))
-}
-
-func (c *Ctx) ScanSuccess(a any) {
-	if s, ok := a.(string); ok && c.OutputFile != "" {
-		c.mx.Lock()
-		f, err := os.OpenFile(c.OutputFile, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+func (ctx *Ctx) ScanSuccess(result any) {
+	if str, ok := result.(string); ok && ctx.OutputFile != "" {
+		ctx.mu.Lock()
+		file, err := os.OpenFile(ctx.OutputFile, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
 		if err == nil {
-			f.WriteString(s + "\n")
-			f.Close()
+			file.WriteString(str + "\n")
+			file.Close()
 		}
-		c.mx.Unlock()
+		ctx.mu.Unlock()
 	}
 
-	atomic.AddInt64(&c.SuccessCount, 1)
+	atomic.AddInt64(&ctx.SuccessCount, 1)
 }
 
-func NewQueueScanner(threads int, scanFunc QueueScannerScanFunc) *QueueScanner {
-	t := &QueueScanner{
+func New(threads int, scanFunc QueueScannerScanFunc) *QueueScanner {
+	scanner := &QueueScanner{
 		threads:  threads,
 		scanFunc: scanFunc,
 		queue:    make(chan string, threads*2),
 		ctx:      &Ctx{},
 	}
 
-	for i := 0; i < t.threads; i++ {
-		t.wg.Add(1)
-		go t.run()
+	for i := 0; i < scanner.threads; i++ {
+		scanner.wg.Add(1)
+		go scanner.run()
 	}
 
-	return t
+	return scanner
 }
 
-func (s *QueueScanner) SetOutputFile(filename string) {
-	s.ctx.OutputFile = filename
+func (qs *QueueScanner) SetOptions(hostList []string, outputFile string, statInterval float64) {
+	qs.ctx.hostList = hostList
+	qs.ctx.OutputFile = outputFile
+	qs.ctx.statInterval = int64(statInterval * 1e9)
 }
 
-func (s *QueueScanner) SetStatInterval(seconds float64) {
-	s.ctx.statInterval = int64(seconds * 1e9)
-}
-
-func (s *QueueScanner) Add(dataList []string) {
-	s.ctx.dataList = dataList
-}
-
-func (s *QueueScanner) Start() {
-	s.ctx.startTime = nowNano()
+func (qs *QueueScanner) Start() {
+	qs.ctx.startTime = nowNano()
 	hideCursor()
 	defer showCursor()
 
-	for _, data := range s.ctx.dataList {
-		s.queue <- data
+	for _, host := range qs.ctx.hostList {
+		qs.queue <- host
 	}
-	close(s.queue)
+	close(qs.queue)
 
-	s.wg.Wait()
+	qs.wg.Wait()
 
-	atomic.StoreInt64(&s.ctx.lastStatTime, 0)
-	s.ctx.LogStat(nil)
+	atomic.StoreInt64(&qs.ctx.lastStatTime, 0)
+	qs.ctx.LogStat()
 	fmt.Println()
 }
 
-func (s *QueueScanner) run() {
-	defer s.wg.Done()
+func (qs *QueueScanner) run() {
+	defer qs.wg.Done()
 
 	for {
-		data, ok := <-s.queue
+		host, ok := <-qs.queue
 		if !ok {
 			break
 		}
 
-		s.scanFunc(s.ctx, data)
+		qs.scanFunc(qs.ctx, host)
 
-		atomic.AddInt64(&s.ctx.ScanComplete, 1)
-		s.ctx.LogStat(data)
+		atomic.AddInt64(&qs.ctx.ScanComplete, 1)
+		qs.ctx.LogStat()
 	}
 }

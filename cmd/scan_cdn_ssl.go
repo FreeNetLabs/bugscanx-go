@@ -6,7 +6,7 @@ import (
 	"crypto/tls"
 	"fmt"
 	"net"
-	"regexp"
+	"strconv"
 	"strings"
 	"time"
 
@@ -15,66 +15,63 @@ import (
 	"github.com/ayanrajpoot10/bugscanx-go/pkg/queuescanner"
 )
 
-var cdnSslCmd = &cobra.Command{
+var cdnSSLCmd = &cobra.Command{
 	Use:   "cdn-ssl",
 	Short: "Scan using CDN SSL proxy with payload injection to SSL targets.",
-	Run:   runScanCdnSsl,
+	Run:   runScanCDNSSL,
 }
 
 var (
-	cdnSslFlagProxyCidr         string
-	cdnSslFlagProxyHost         string
-	cdnSslFlagProxyHostFilename string
-	cdnSslFlagProxyPort         int
-	cdnSslFlagBug               string
-	cdnSslFlagMethod            string
-	cdnSslFlagTarget            string
-	cdnSslFlagPath              string
-	cdnSslFlagScheme            string
-	cdnSslFlagProtocol          string
-	cdnSslFlagPayload           string
-	cdnSslFlagTimeout           int
-	cdnSslFlagOutput            string
+	cdnSSLFlagProxyCIDR         string
+	cdnSSLFlagProxyHost         string
+	cdnSSLFlagProxyHostFilename string
+	cdnSSLFlagProxyPort         int
+	cdnSSLFlagBug               string
+	cdnSSLFlagMethod            string
+	cdnSSLFlagTarget            string
+	cdnSSLFlagPath              string
+	cdnSSLFlagScheme            string
+	cdnSSLFlagProtocol          string
+	cdnSSLFlagPayload           string
+	cdnSSLFlagTimeout           int
+	cdnSSLFlagOutput            string
 )
 
 func init() {
-	rootCmd.AddCommand(cdnSslCmd)
+	rootCmd.AddCommand(cdnSSLCmd)
 
-	cdnSslCmd.Flags().StringVarP(&cdnSslFlagProxyCidr, "cidr", "c", "", "cidr cdn proxy to scan e.g. 127.0.0.1/32")
-	cdnSslCmd.Flags().StringVar(&cdnSslFlagProxyHost, "proxy", "", "cdn proxy without port")
-	cdnSslCmd.Flags().StringVarP(&cdnSslFlagProxyHostFilename, "filename", "f", "", "cdn proxy filename without port")
-	cdnSslCmd.Flags().IntVarP(&cdnSslFlagProxyPort, "port", "p", 443, "proxy port")
-	cdnSslCmd.Flags().StringVarP(&cdnSslFlagBug, "bug", "B", "", "bug to use when proxy is ip instead of domain")
-	cdnSslCmd.Flags().StringVarP(&cdnSslFlagMethod, "method", "M", "HEAD", "request method")
-	cdnSslCmd.Flags().StringVar(&cdnSslFlagTarget, "target", "", "target domain cdn")
-	cdnSslCmd.Flags().StringVar(&cdnSslFlagPath, "path", "[scheme][bug]", "request path")
-	cdnSslCmd.Flags().StringVar(&cdnSslFlagScheme, "scheme", "ws://", "request scheme")
-	cdnSslCmd.Flags().StringVar(&cdnSslFlagProtocol, "protocol", "HTTP/1.1", "request protocol")
-	cdnSslCmd.Flags().StringVar(&cdnSslFlagPayload, "payload", "[method] [path] [protocol][crlf]Host: [host][crlf]Upgrade: websocket[crlf][crlf]", "request payload for sending throught cdn proxy")
-	cdnSslCmd.Flags().IntVar(&cdnSslFlagTimeout, "timeout", 3, "handshake timeout")
-	cdnSslCmd.Flags().StringVarP(&cdnSslFlagOutput, "output", "o", "", "output result")
-
-	cdnSslFlagMethod = strings.ToUpper(cdnSslFlagMethod)
+	cdnSSLCmd.Flags().StringVarP(&cdnSSLFlagProxyCIDR, "cidr", "c", "", "cidr cdn proxy to scan e.g. 127.0.0.1/32")
+	cdnSSLCmd.Flags().StringVar(&cdnSSLFlagProxyHost, "proxy", "", "cdn proxy without port")
+	cdnSSLCmd.Flags().StringVarP(&cdnSSLFlagProxyHostFilename, "filename", "f", "", "cdn proxy filename without port")
+	cdnSSLCmd.Flags().IntVarP(&cdnSSLFlagProxyPort, "port", "p", 443, "proxy port")
+	cdnSSLCmd.Flags().StringVarP(&cdnSSLFlagBug, "bug", "B", "", "bug to use when proxy is ip instead of domain")
+	cdnSSLCmd.Flags().StringVarP(&cdnSSLFlagMethod, "method", "M", "HEAD", "request method")
+	cdnSSLCmd.Flags().StringVar(&cdnSSLFlagTarget, "target", "", "target domain cdn")
+	cdnSSLCmd.Flags().StringVar(&cdnSSLFlagPath, "path", "[scheme][bug]", "request path")
+	cdnSSLCmd.Flags().StringVar(&cdnSSLFlagScheme, "scheme", "ws://", "request scheme")
+	cdnSSLCmd.Flags().StringVar(&cdnSSLFlagProtocol, "protocol", "HTTP/1.1", "request protocol")
+	cdnSSLCmd.Flags().StringVar(&cdnSSLFlagPayload, "payload", "[method] [path] [protocol][crlf]Host: [host][crlf]Upgrade: websocket[crlf][crlf]", "request payload for sending throught cdn proxy")
+	cdnSSLCmd.Flags().IntVar(&cdnSSLFlagTimeout, "timeout", 3, "handshake timeout")
+	cdnSSLCmd.Flags().StringVarP(&cdnSSLFlagOutput, "output", "o", "", "output result")
 }
 
-func scanCdnSsl(c *queuescanner.Ctx, host string) {
-	regexpIsIP := regexp.MustCompile(`\d+$`)
-	bug := cdnSslFlagBug
+func scanCDNSSL(ctx *queuescanner.Ctx, host string) {
+	bug := cdnSSLFlagBug
 	if bug == "" {
-		if regexpIsIP.MatchString(host) {
-			bug = cdnSslFlagTarget
+		if ipRegex.MatchString(host) {
+			bug = cdnSSLFlagTarget
 		} else {
 			bug = host
 		}
 	}
 
-	if cdnSslFlagPath == "/" {
-		bug = cdnSslFlagTarget
+	if cdnSSLFlagPath == "/" {
+		bug = cdnSSLFlagTarget
 	}
 
-	proxyHostPort := net.JoinHostPort(host, fmt.Sprintf("%d", cdnSslFlagProxyPort))
+	address := net.JoinHostPort(host, strconv.Itoa(cdnSSLFlagProxyPort))
 
-	conn, err := net.DialTimeout("tcp", proxyHostPort, 3*time.Second)
+	conn, err := net.DialTimeout("tcp", address, 3*time.Second)
 	if err != nil {
 		return
 	}
@@ -85,22 +82,22 @@ func scanCdnSsl(c *queuescanner.Ctx, host string) {
 		InsecureSkipVerify: true,
 	})
 
-	ctxHandshake, ctxHandshakeCancel := context.WithTimeout(context.Background(), time.Duration(cdnSslFlagTimeout)*time.Second)
-	defer ctxHandshakeCancel()
+	handshakeCtx, cancel := context.WithTimeout(context.Background(), time.Duration(cdnSSLFlagTimeout)*time.Second)
+	defer cancel()
 
-	err = tlsConn.HandshakeContext(ctxHandshake)
+	err = tlsConn.HandshakeContext(handshakeCtx)
 	if err != nil {
 		return
 	}
 
-	ctxResultTimeout, ctxResultTimeoutCancel := context.WithTimeout(context.Background(), 10*time.Second)
-	defer ctxResultTimeoutCancel()
+	timeoutCtx, timeoutCancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer timeoutCancel()
 
-	chanResult := make(chan bool)
+	resultCh := make(chan bool)
 
 	go func() {
-		payload := getScanCdnSslPayloadDecoded(bug)
-		payload = strings.ReplaceAll(payload, "[host]", cdnSslFlagTarget)
+		payload := getScanCDNSSLPayloadDecoded(bug)
+		payload = strings.ReplaceAll(payload, "[host]", cdnSSLFlagTarget)
 		payload = strings.ReplaceAll(payload, "[crlf]", "\r\n")
 
 		_, err = tlsConn.Write([]byte(payload))
@@ -108,7 +105,7 @@ func scanCdnSsl(c *queuescanner.Ctx, host string) {
 			return
 		}
 
-		responseLines := make([]string, 0)
+		responseLines := []string{}
 		scanner := bufio.NewScanner(tlsConn)
 		isPrefix := true
 
@@ -124,64 +121,62 @@ func scanCdnSsl(c *queuescanner.Ctx, host string) {
 		}
 
 		if len(responseLines) == 0 || !strings.Contains(responseLines[0], " 101 ") {
-			c.Log(fmt.Sprintf("%-32s  %s", proxyHostPort, strings.Join(responseLines, " -- ")))
+			ctx.Log(fmt.Sprintf("%-32s  %s", address, strings.Join(responseLines, " -- ")))
 			return
 		}
 
-		formatted := fmt.Sprintf("%-32s  %s", proxyHostPort, strings.Join(responseLines, " -- "))
-		c.ScanSuccess(formatted)
-		c.Log(formatted)
+		formatted := fmt.Sprintf("%-32s  %s", address, strings.Join(responseLines, " -- "))
+		ctx.ScanSuccess(formatted)
+		ctx.Log(formatted)
 
-		chanResult <- true
+		resultCh <- true
 	}()
 
 	select {
-	case <-chanResult:
+	case <-resultCh:
 		return
-	case <-ctxResultTimeout.Done():
+	case <-timeoutCtx.Done():
 		return
 	}
 }
 
-func getScanCdnSslPayloadDecoded(bug ...string) string {
-	payload := cdnSslFlagPayload
-	payload = strings.ReplaceAll(payload, "[method]", cdnSslFlagMethod)
-	payload = strings.ReplaceAll(payload, "[path]", cdnSslFlagPath)
-	payload = strings.ReplaceAll(payload, "[scheme]", cdnSslFlagScheme)
-	payload = strings.ReplaceAll(payload, "[protocol]", cdnSslFlagProtocol)
+func getScanCDNSSLPayloadDecoded(bug ...string) string {
+	payload := cdnSSLFlagPayload
+	payload = strings.ReplaceAll(payload, "[method]", strings.ToUpper(cdnSSLFlagMethod))
+	payload = strings.ReplaceAll(payload, "[path]", cdnSSLFlagPath)
+	payload = strings.ReplaceAll(payload, "[scheme]", cdnSSLFlagScheme)
+	payload = strings.ReplaceAll(payload, "[protocol]", cdnSSLFlagProtocol)
 	if len(bug) > 0 {
 		payload = strings.ReplaceAll(payload, "[bug]", bug[0])
 	}
 	return payload
 }
 
-func runScanCdnSsl(cmd *cobra.Command, args []string) {
+func runScanCDNSSL(cmd *cobra.Command, args []string) {
 	var proxyHosts []string
 
-	if cdnSslFlagProxyHost != "" {
-		proxyHosts = append(proxyHosts, cdnSslFlagProxyHost)
+	if cdnSSLFlagProxyHost != "" {
+		proxyHosts = append(proxyHosts, cdnSSLFlagProxyHost)
 	}
 
-	if cdnSslFlagProxyHostFilename != "" {
-		lines, err := ReadFile(cdnSslFlagProxyHostFilename)
+	if cdnSSLFlagProxyHostFilename != "" {
+		lines, err := ReadFile(cdnSSLFlagProxyHostFilename)
 		if err != nil {
 			fatal(err)
 		}
 		proxyHosts = append(proxyHosts, lines...)
 	}
 
-	if cdnSslFlagProxyCidr != "" {
-		cidrHosts, err := IPsFromCIDR(cdnSslFlagProxyCidr)
+	if cdnSSLFlagProxyCIDR != "" {
+		cidrHosts, err := IPsFromCIDR(cdnSSLFlagProxyCIDR)
 		if err != nil {
 			fatal(err)
 		}
 		proxyHosts = append(proxyHosts, cidrHosts...)
 	}
 
-	queueScanner := queuescanner.NewQueueScanner(globalFlagThreads, scanCdnSsl)
-	queueScanner.Add(proxyHosts)
-	fmt.Printf("%s\n\n", getScanCdnSslPayloadDecoded())
-	queueScanner.SetOutputFile(cdnSslFlagOutput)
-	queueScanner.SetStatInterval(globalFlagStatInterval)
-	queueScanner.Start()
+	qs := queuescanner.New(globalFlagThreads, scanCDNSSL)
+	fmt.Printf("%s\n\n", getScanCDNSSLPayloadDecoded())
+	qs.SetOptions(proxyHosts, cdnSSLFlagOutput, globalFlagStatInterval)
+	qs.Start()
 }

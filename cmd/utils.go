@@ -6,7 +6,10 @@ import (
 	"io"
 	"net"
 	"os"
+	"regexp"
 )
+
+var ipRegex = regexp.MustCompile(`\d+$`)
 
 func ReadFile(filename string) ([]string, error) {
 	var reader io.Reader
@@ -63,9 +66,8 @@ func IPsFromCIDR(cidr string) ([]string, error) {
 	}
 
 	var ips []string
-	for ip := ip.Mask(ipnet.Mask); ipnet.Contains(ip); ipInc(ip) {
-		ipString := ip.String()
-		ips = append(ips, ipString)
+	for currentIP := ip.Mask(ipnet.Mask); ipnet.Contains(currentIP); ipInc(currentIP) {
+		ips = append(ips, currentIP.String())
 	}
 	if len(ips) <= 1 {
 		return ips, nil

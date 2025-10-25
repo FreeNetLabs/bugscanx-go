@@ -3,6 +3,7 @@ package cmd
 import (
 	"fmt"
 	"net"
+	"strconv"
 	"time"
 
 	"github.com/spf13/cobra"
@@ -32,8 +33,8 @@ func init() {
 	pingCmd.Flags().IntVar(&pingFlagPort, "port", 80, "port to use")
 }
 
-func pingHost(c *queuescanner.Ctx, host string) {
-	conn, err := net.DialTimeout("tcp", net.JoinHostPort(host, fmt.Sprintf("%d", pingFlagPort)), time.Duration(pingFlagTimeout)*time.Second)
+func pingHost(ctx *queuescanner.Ctx, host string) {
+	conn, err := net.DialTimeout("tcp", net.JoinHostPort(host, strconv.Itoa(pingFlagPort)), time.Duration(pingFlagTimeout)*time.Second)
 	if err != nil {
 		return
 	}
@@ -46,8 +47,8 @@ func pingHost(c *queuescanner.Ctx, host string) {
 	}
 
 	formatted := fmt.Sprintf("%-16s %-20s", ip, host)
-	c.ScanSuccess(formatted)
-	c.Log(formatted)
+	ctx.ScanSuccess(formatted)
+	ctx.Log(formatted)
 }
 
 func pingRun(cmd *cobra.Command, args []string) {
@@ -59,9 +60,7 @@ func pingRun(cmd *cobra.Command, args []string) {
 	fmt.Printf("%-16s %-20s\n", "IP Address", "Host")
 	fmt.Printf("%-16s %-20s\n", "----------", "----")
 
-	queuescanner := queuescanner.NewQueueScanner(globalFlagThreads, pingHost)
-	queuescanner.Add(hosts)
-	queuescanner.SetOutputFile(pingFlagOutput)
-	queuescanner.SetStatInterval(globalFlagStatInterval)
-	queuescanner.Start()
+	qs := queuescanner.New(globalFlagThreads, pingHost)
+	qs.SetOptions(hosts, pingFlagOutput, globalFlagStatInterval)
+	qs.Start()
 }

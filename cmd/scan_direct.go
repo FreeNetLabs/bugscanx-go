@@ -95,16 +95,16 @@ func extractHTTPHeaders(response string) (statusCode int, server string, locatio
 	return statusCode, server, location
 }
 
-func scanDirect(c *queuescanner.Ctx, host string) {
+func scanDirect(ctx *queuescanner.Ctx, host string) {
 	ports, err := parsePorts(directFlagPort)
 	if err != nil {
 		return
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), time.Duration(directFlagTimeoutDNS)*time.Second)
+	lookupCtx, cancel := context.WithTimeout(context.Background(), time.Duration(directFlagTimeoutDNS)*time.Second)
 	defer cancel()
 
-	ips, err := net.DefaultResolver.LookupIP(ctx, "ip4", host)
+	ips, err := net.DefaultResolver.LookupIP(lookupCtx, "ip4", host)
 	if err != nil || len(ips) == 0 {
 		return
 	}
@@ -175,8 +175,8 @@ func scanDirect(c *queuescanner.Ctx, host string) {
 		hostWithPort := fmt.Sprintf("%s:%s", host, port)
 		formatted := fmt.Sprintf("%-15s  %-3d   %-16s    %s", ipStr, statusCode, server, hostWithPort)
 
-		c.ScanSuccess(formatted)
-		c.Log(formatted)
+		ctx.ScanSuccess(formatted)
+		ctx.Log(formatted)
 	}
 }
 
@@ -189,9 +189,7 @@ func scanDirectRun(cmd *cobra.Command, args []string) {
 	fmt.Printf("%-15s  %-3s  %-16s    %s\n", "IP Address", "Code", "Server", "Host")
 	fmt.Printf("%-15s  %-3s  %-16s    %s\n", "----------", "----", "------", "----")
 
-	queueScanner := queuescanner.NewQueueScanner(globalFlagThreads, scanDirect)
-	queueScanner.Add(hosts)
-	queueScanner.SetOutputFile(directFlagOutput)
-	queueScanner.SetStatInterval(globalFlagStatInterval)
-	queueScanner.Start()
+	qs := queuescanner.New(globalFlagThreads, scanDirect)
+	qs.SetOptions(hosts, directFlagOutput, globalFlagStatInterval)
+	qs.Start()
 }

@@ -35,7 +35,7 @@ func init() {
 	sniCmd.Flags().StringVarP(&sniFlagOutput, "output", "o", "", "output result")
 }
 
-func scanSNI(c *queuescanner.Ctx, host string) {
+func scanSNI(ctx *queuescanner.Ctx, host string) {
 	conn, err := net.DialTimeout("tcp", host+":443", 3*time.Second)
 	if err != nil {
 		return
@@ -54,17 +54,17 @@ func scanSNI(c *queuescanner.Ctx, host string) {
 	})
 	defer tlsConn.Close()
 
-	ctxHandshake, ctxHandshakeCancel := context.WithTimeout(context.Background(), time.Duration(sniFlagTimeout)*time.Second)
-	defer ctxHandshakeCancel()
+	handshakeCtx, cancel := context.WithTimeout(context.Background(), time.Duration(sniFlagTimeout)*time.Second)
+	defer cancel()
 
-	err = tlsConn.HandshakeContext(ctxHandshake)
+	err = tlsConn.HandshakeContext(handshakeCtx)
 	if err != nil {
 		return
 	}
 
 	formatted := fmt.Sprintf("%-16s %-20s", ip, host)
-	c.ScanSuccess(formatted)
-	c.Log(formatted)
+	ctx.ScanSuccess(formatted)
+	ctx.Log(formatted)
 }
 
 func runScanSNI(cmd *cobra.Command, args []string) {
@@ -88,9 +88,7 @@ func runScanSNI(cmd *cobra.Command, args []string) {
 	fmt.Printf("%-16s %-20s\n", "IP Address", "SNI")
 	fmt.Printf("%-16s %-20s\n", "----------", "----")
 
-	queueScanner := queuescanner.NewQueueScanner(globalFlagThreads, scanSNI)
-	queueScanner.Add(domains)
-	queueScanner.SetOutputFile(sniFlagOutput)
-	queueScanner.SetStatInterval(globalFlagStatInterval)
-	queueScanner.Start()
+	qs := queuescanner.New(globalFlagThreads, scanSNI)
+	qs.SetOptions(domains, sniFlagOutput, globalFlagStatInterval)
+	qs.Start()
 }
