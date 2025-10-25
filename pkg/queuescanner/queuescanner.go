@@ -23,11 +23,9 @@ type Ctx struct {
 	statInterval int64 // in nanoseconds
 }
 
-type QueueScannerScanFunc func(c *Ctx, host string)
-
 type QueueScanner struct {
 	threads  int
-	scanFunc QueueScannerScanFunc
+	scanFunc func(c *Ctx, host string)
 	queue    chan string
 	wg       sync.WaitGroup
 	ctx      *Ctx
@@ -109,7 +107,7 @@ func (ctx *Ctx) ScanSuccess(result any) {
 	atomic.AddInt64(&ctx.SuccessCount, 1)
 }
 
-func New(threads int, scanFunc QueueScannerScanFunc) *QueueScanner {
+func New(threads int, scanFunc func(c *Ctx, host string)) *QueueScanner {
 	scanner := &QueueScanner{
 		threads:  threads,
 		scanFunc: scanFunc,
