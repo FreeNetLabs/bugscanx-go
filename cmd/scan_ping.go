@@ -62,6 +62,6 @@ func pingRun(cmd *cobra.Command, args []string) {
 	queuescanner := queuescanner.NewQueueScanner(globalFlagThreads, pingHost)
 	queuescanner.Add(hosts)
 	queuescanner.SetOutputFile(pingFlagOutput)
-	queuescanner.SetPrintInterval(globalFlagPrintInterval)
+	queuescanner.SetStatInterval(globalFlagStatInterval)
 	queuescanner.Start()
 }

@@ -11,14 +11,14 @@ import (
 )
 
 type Ctx struct {
-	ScanComplete  int64
-	SuccessCount  int64
-	dataList      []string
-	mx            sync.Mutex
-	OutputFile    string
-	startTime     int64
-	lastPrintTime int64
-	printInterval int64 // in nanoseconds
+	ScanComplete int64
+	SuccessCount int64
+	dataList     []string
+	mx           sync.Mutex
+	OutputFile   string
+	startTime    int64
+	lastStatTime int64
+	statInterval int64 // in nanoseconds
 }
 
 type QueueScannerScanFunc func(c *Ctx, host string)
@@ -59,13 +59,13 @@ func (c *Ctx) Logf(f string, a ...any) {
 	c.Log(fmt.Sprintf(f, a...))
 }
 
-func (c *Ctx) LogReplace(currentItem any) {
-	if c.printInterval > 0 {
+func (c *Ctx) LogStat(currentItem any) {
+	if c.statInterval > 0 {
 		now := nowNano()
-		if now-atomic.LoadInt64(&c.lastPrintTime) < c.printInterval {
+		if now-atomic.LoadInt64(&c.lastStatTime) < c.statInterval {
 			return
 		}
-		atomic.StoreInt64(&c.lastPrintTime, now)
+		atomic.StoreInt64(&c.lastStatTime, now)
 	}
 
 	scanSuccess := atomic.LoadInt64(&c.SuccessCount)
@@ -99,8 +99,8 @@ func (c *Ctx) LogReplace(currentItem any) {
 	fmt.Print("\r\033[2K", s, "\r")
 }
 
-func (c *Ctx) LogReplacef(f string, a ...any) {
-	c.LogReplace(fmt.Sprintf(f, a...))
+func (c *Ctx) LogStatf(f string, a ...any) {
+	c.LogStat(fmt.Sprintf(f, a...))
 }
 
 func (c *Ctx) ScanSuccess(a any) {
@@ -137,8 +137,8 @@ func (s *QueueScanner) SetOutputFile(filename string) {
 	s.ctx.OutputFile = filename
 }
 
-func (s *QueueScanner) SetPrintInterval(seconds float64) {
-	s.ctx.printInterval = int64(seconds * 1e9)
+func (s *QueueScanner) SetStatInterval(seconds float64) {
+	s.ctx.statInterval = int64(seconds * 1e9)
 }
 
 func (s *QueueScanner) Add(dataList []string) {
@@ -157,8 +157,8 @@ func (s *QueueScanner) Start() {
 
 	s.wg.Wait()
 
-	atomic.StoreInt64(&s.ctx.lastPrintTime, 0)
-	s.ctx.LogReplace(nil)
+	atomic.StoreInt64(&s.ctx.lastStatTime, 0)
+	s.ctx.LogStat(nil)
 	fmt.Println()
 }
 
@@ -174,6 +174,6 @@ func (s *QueueScanner) run() {
 		s.scanFunc(s.ctx, data)
 
 		atomic.AddInt64(&s.ctx.ScanComplete, 1)
-		s.ctx.LogReplace(data)
+		s.ctx.LogStat(data)
 	}
 }

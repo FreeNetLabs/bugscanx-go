@@ -10,8 +10,8 @@ var rootCmd = &cobra.Command{
 }
 
 var (
-	globalFlagThreads	    int
-	globalFlagPrintInterval float64
+	globalFlagThreads      int
+	globalFlagStatInterval float64
 )
 
 func Execute() {
@@ -19,8 +19,8 @@ func Execute() {
 }
 
 func init() {
-	rootCmd.PersistentFlags().IntVarP(&globalFlagThreads, "threads", "t", 64, "total threads to use")
-	rootCmd.PersistentFlags().Float64Var(&globalFlagPrintInterval, "print-interval", 1.0, "progress print interval in seconds")
 	rootCmd.CompletionOptions.DisableDefaultCmd = true
 	rootCmd.SetHelpCommand(&cobra.Command{Hidden: true})
+	rootCmd.PersistentFlags().IntVarP(&globalFlagThreads, "threads", "t", 64, "total threads to use")
+	rootCmd.PersistentFlags().Float64Var(&globalFlagStatInterval, "stat-interval", 1.0, "stat interval in seconds")
 }

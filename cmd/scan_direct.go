@@ -192,6 +192,6 @@ func scanDirectRun(cmd *cobra.Command, args []string) {
 	queueScanner := queuescanner.NewQueueScanner(globalFlagThreads, scanDirect)
 	queueScanner.Add(hosts)
 	queueScanner.SetOutputFile(directFlagOutput)
-	queueScanner.SetPrintInterval(globalFlagPrintInterval)
+	queueScanner.SetStatInterval(globalFlagStatInterval)
 	queueScanner.Start()
 }

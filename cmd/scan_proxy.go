@@ -170,6 +170,6 @@ func runScanProxy(cmd *cobra.Command, args []string) {
 	queueScanner.Add(proxyHosts)
 	fmt.Printf("%s\n\n", getScanProxyPayloadDecoded())
 	queueScanner.SetOutputFile(proxyFlagOutput)
-	queueScanner.SetPrintInterval(globalFlagPrintInterval)
+	queueScanner.SetStatInterval(globalFlagStatInterval)
 	queueScanner.Start()
 }

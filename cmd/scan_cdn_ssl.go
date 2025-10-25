@@ -182,6 +182,6 @@ func runScanCdnSsl(cmd *cobra.Command, args []string) {
 	queueScanner.Add(proxyHosts)
 	fmt.Printf("%s\n\n", getScanCdnSslPayloadDecoded())
 	queueScanner.SetOutputFile(cdnSslFlagOutput)
-	queueScanner.SetPrintInterval(globalFlagPrintInterval)
+	queueScanner.SetStatInterval(globalFlagStatInterval)
 	queueScanner.Start()
 }
