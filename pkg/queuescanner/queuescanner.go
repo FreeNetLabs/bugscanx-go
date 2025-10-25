@@ -70,14 +70,12 @@ func (ctx *Ctx) LogStat() {
 	scanComplete := atomic.LoadInt64(&ctx.ScanComplete)
 	scanCompletePercentage := float64(scanComplete) / float64(len(ctx.hostList)) * 100
 
-	eta := "--"
-	if scanComplete > 0 && len(ctx.hostList) > 0 {
-		elapsed := float64(nowNano()-ctx.startTime) / 1e9 // seconds
-		avgPerItem := elapsed / float64(scanComplete)
-		remaining := float64(len(ctx.hostList) - int(scanComplete))
-		etaSec := avgPerItem * remaining
-		eta = formatETA(etaSec)
-	}
+	elapsed := float64(nowNano()-ctx.startTime) / 1e9 // seconds
+	avgPerItem := elapsed / float64(scanComplete)
+	remaining := float64(len(ctx.hostList) - int(scanComplete))
+	etaSec := avgPerItem * remaining
+	eta := formatETA(etaSec)
+
 	status := fmt.Sprintf(
 		"%.2f%% - C: %d / %d - S: %d - ETA: %s",
 		scanCompletePercentage,
