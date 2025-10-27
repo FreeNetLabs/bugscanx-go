@@ -15,12 +15,13 @@ import (
 type Ctx struct {
 	ScanComplete int64
 	SuccessCount int64
-	hostList     []string
-	mu           sync.Mutex
-	OutputFile   string
 	startTime    int64
 	lastStatTime int64
 	statInterval int64 // in nanoseconds
+
+	hostList   []string
+	mu         sync.Mutex
+	OutputFile string
 }
 
 type QueueScanner struct {
